@@ -33,8 +33,8 @@ export function SettingsModal() {
         <DialogHeader>
           <DialogTitle>API Settings</DialogTitle>
           <DialogDescription>
-            Enter your Shadowserver API key here. This key will be securely
-            stored.
+            Enter your Shadowserver API key here. This key will only be stored
+            in your web browser.
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
