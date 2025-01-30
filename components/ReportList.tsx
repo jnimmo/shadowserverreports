@@ -1,17 +1,23 @@
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
-interface Report {
-  id: string
-  type: string
-  date: string
-  url: string
-  geo: string
-  asn: string
-  ip: string
+export interface Report {
+  id: string;
+  type: string;
+  timestamp: string;
+  url: string;
+  report: string;
+  file: string;
 }
 
 interface ReportListProps {
-  reports: Report[]
+  reports: Report[];
 }
 
 export function ReportList({ reports }: ReportListProps) {
@@ -19,26 +25,25 @@ export function ReportList({ reports }: ReportListProps) {
     <Table>
       <TableHeader>
         <TableRow>
-          <TableHead>ID</TableHead>
           <TableHead>Type</TableHead>
           <TableHead>Date</TableHead>
-          <TableHead>Geo</TableHead>
-          <TableHead>ASN</TableHead>
-          <TableHead>IP</TableHead>
-          <TableHead>URL</TableHead>
+          <TableHead>File</TableHead>
+          <TableHead>Report</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
         {reports.map((report) => (
           <TableRow key={report.id}>
-            <TableCell>{report.id}</TableCell>
             <TableCell>{report.type}</TableCell>
-            <TableCell>{new Date(report.date).toLocaleDateString()}</TableCell>
-            <TableCell>{report.geo}</TableCell>
-            <TableCell>{report.asn}</TableCell>
-            <TableCell>{report.ip}</TableCell>
+            <TableCell>{report.timestamp}</TableCell>
+            <TableCell>{report.file}</TableCell>
             <TableCell>
-              <a href={report.url} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">
+              <a
+                href={`https://dl.shadowserver.org/${report.id}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-500 hover:underline"
+              >
                 View Report
               </a>
             </TableCell>
@@ -46,6 +51,5 @@ export function ReportList({ reports }: ReportListProps) {
         ))}
       </TableBody>
     </Table>
-  )
+  );
 }
-

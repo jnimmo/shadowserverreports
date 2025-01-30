@@ -3,11 +3,11 @@
 import { cookies } from "next/headers";
 
 export interface FilterSettings {
-  reportType: string;
+  reportType?: string;
   dateRange: { from: string; to: string };
-  geo: string;
-  asn: string;
-  ip: string;
+  geo?: string;
+  asn?: string;
+  ip?: string;
 }
 
 export async function setFilterSettings(settings: FilterSettings) {
