@@ -10,6 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogClose,
 } from "@/components/ui/dialog";
 import { setApiKey } from "../app/actions/api-key";
 import { setApiSecret } from "../app/actions/api-key";
@@ -22,6 +23,7 @@ export function SettingsModal() {
     await setApiSecret(apiSecret);
     setApiKeyState("");
     setApiSecretState("");
+    window.location.reload();
   };
 
   return (
@@ -62,9 +64,11 @@ export function SettingsModal() {
           </div>
         </div>
         <DialogFooter>
-          <Button type="submit" onClick={handleSave}>
-            Save changes
-          </Button>
+          <DialogClose asChild>
+            <Button type="submit" onClick={handleSave}>
+              Save changes
+            </Button>
+          </DialogClose>
         </DialogFooter>
       </DialogContent>
     </Dialog>

@@ -35,6 +35,9 @@ export function useShadowserverApi(filters: FilterSettings) {
         }
 
         const data = await response.json();
+        if (data.error) {
+          throw new Error(data.error);
+        }
         setReports(data);
       } catch (err) {
         if (err instanceof Error) {
@@ -46,8 +49,9 @@ export function useShadowserverApi(filters: FilterSettings) {
         setLoading(false);
       }
     }
-
-    fetchReports();
+    if (filters.dateRange.from && filters.dateRange.to) {
+      fetchReports();
+    }
   }, [filters]);
 
   return { reports, loading, error };

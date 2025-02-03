@@ -137,7 +137,11 @@ export default function ShadowserverReports() {
             /> */}
           </div>
           {error && <div className="text-red-500 mb-4">{error}</div>}
-          {loading ? <div>Loading...</div> : <ReportList reports={reports} />}
+          {loading ? (
+            <div>Loading...</div>
+          ) : (
+            !error && <ReportList reports={reports} />
+          )}
         </CardContent>
       </Card>
     </div>

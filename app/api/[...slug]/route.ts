@@ -60,6 +60,12 @@ export async function GET(
     `https://transform.shadowserver.org/api2/${slug[0]}/${slug[1]}`,
     { method: "POST", headers: { HMAC2: hmac }, body: payload }
   );
+  if (!result.ok) {
+    return Response.json(
+      { error: result.statusText },
+      { status: result.status, statusText: result.statusText }
+    );
+  }
   const outcome = await result.json();
 
   return Response.json(outcome);
