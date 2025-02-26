@@ -86,7 +86,8 @@ export default function ShadowserverReports() {
         <CardHeader>
           <CardTitle>Shadowserver Reports</CardTitle>
           <CardDescription>
-            Query and display reports from the Shadowserver API. See{" "}
+            Unofficial web client to query and display reports from the
+            Shadowserver API. See{" "}
             <a
               href={`https://github.com/jnimmo/shadowserverreports/tree/main/`}
               target="_blank"

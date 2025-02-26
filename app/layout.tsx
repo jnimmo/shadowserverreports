@@ -3,7 +3,8 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Shadowserver API client",
-  description: "Query and display reports from Shadowserver",
+  description:
+    "An unofficial web client to query and display reports from Shadowserver",
 };
 
 export default function RootLayout({
