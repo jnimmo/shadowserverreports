@@ -27,8 +27,6 @@ import {
   // setFilterSettings,
   // getFilterSettings,
 } from "./actions/filters";
-import GitHubLogo from "./GitHubLogo";
-import { GitHubLogoIcon } from "@radix-ui/react-icons";
 
 export default function ShadowserverReports() {
   const [reportTypes, setReportTypes] = useState<string[]>([]);
