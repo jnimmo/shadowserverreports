@@ -27,6 +27,8 @@ import {
   // setFilterSettings,
   // getFilterSettings,
 } from "./actions/filters";
+import GitHubLogo from "./GitHubLogo";
+import { GitHubLogoIcon } from "@radix-ui/react-icons";
 
 export default function ShadowserverReports() {
   const [reportTypes, setReportTypes] = useState<string[]>([]);
@@ -86,7 +88,15 @@ export default function ShadowserverReports() {
         <CardHeader>
           <CardTitle>Shadowserver Reports</CardTitle>
           <CardDescription>
-            Query and display reports from the Shadowserver API
+            Query and display reports from the Shadowserver API. See{" "}
+            <a
+              href={`https://github.com/jnimmo/shadowserverreports/tree/main/`}
+              target="_blank"
+              className="underline hover:no-underline"
+            >
+              Github
+            </a>{" "}
+            for more information.
           </CardDescription>
         </CardHeader>
         <CardContent>
