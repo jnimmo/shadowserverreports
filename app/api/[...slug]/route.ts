@@ -39,12 +39,12 @@ export async function GET(
   const searchParams = request.nextUrl.searchParams;
 
   if (!apiSettings.key || !apiSettings.secret) {
-    return Response.json({ error: "API key not set" }, { status: 400 });
+    return Response.json({ error: "API key not set" }, { status: 403 });
   }
   if (
     slug.length !== 2 ||
     slug[0] !== "reports" ||
-    (slug[1] !== "list" && slug[1] !== "types")
+    !["list", "types", "stats"].includes(slug[1])
   ) {
     return Response.json({ error: "Invalid request" }, { status: 400 });
   }
@@ -60,6 +60,7 @@ export async function GET(
     `https://transform.shadowserver.org/api2/${slug[0]}/${slug[1]}`,
     { method: "POST", headers: { HMAC2: hmac }, body: payload }
   );
+
   if (!result.ok) {
     return Response.json(
       { error: result.statusText },

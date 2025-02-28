@@ -2,57 +2,68 @@ import { useState, useEffect } from "react";
 import { getApiKey } from "../app/actions/api-key";
 import type { FilterSettings } from "../app/actions/filters";
 import { Report } from "@/components/ReportList";
+import useSWR from "swr/immutable";
+import { Fetcher } from "swr";
 
-export function useShadowserverApi(filters: FilterSettings) {
-  const [reports, setReports] = useState<Report[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+async function fetcher(...args: Parameters<typeof fetch>) {
+  const response = await fetch(...args);
+  if (!response.ok) {
+    throw new Error("Failed to fetch report types");
+  }
+  return response.json();
+}
 
-  useEffect(() => {
-    async function fetchReports() {
-      setLoading(true);
-      setError(null);
-      try {
-        const apiKey = await getApiKey();
-        if (!apiKey) {
-          throw new Error("API key not set");
-        }
-
-        const dateFilter = `${filters.dateRange.from.split("T")[0]}:${
-          filters.dateRange.to.split("T")[0]
-        }`;
-
-        const queryParams = new URLSearchParams();
-        if (filters.reportType) queryParams.append("type", filters.reportType);
-        queryParams.append("date", dateFilter);
-        if (filters.geo) queryParams.append("geo", filters.geo);
-        if (filters.asn) queryParams.append("asn", filters.asn);
-        if (filters.ip) queryParams.append("ip", filters.ip);
-
-        const response = await fetch(`/api/reports/list?${queryParams}`);
-        if (!response.ok) {
-          throw new Error("Failed to fetch reports");
-        }
-
-        const data = await response.json();
-        if (data.error) {
-          throw new Error(data.error);
-        }
-        setReports(data);
-      } catch (err) {
-        if (err instanceof Error) {
-          setError(err.message);
-        } else {
-          setError(String(err));
-        }
-      } finally {
-        setLoading(false);
-      }
+export function useReportTypes() {
+  const { data, error, isLoading } = useSWR<string[]>(
+    `/api/reports/types`,
+    fetcher,
+    {
+      revalidateIfStale: false,
+      revalidateOnFocus: false,
+      revalidateOnReconnect: false,
     }
-    if (filters.dateRange.from && filters.dateRange.to) {
-      fetchReports();
-    }
-  }, [filters]);
+  );
 
-  return { reports, loading, error };
+  return {
+    reportTypes: data,
+    isLoading,
+    isError: error,
+  };
+}
+
+export function useReportList(filters: FilterSettings) {
+  // If no date range, return default object with empty reports
+  if (filters.dateRange && (!filters.dateRange.from || !filters.dateRange.to)) {
+    return {
+      reports: [],
+      isLoading: false,
+      isError: null,
+    };
+  }
+
+  const queryParams = new URLSearchParams({
+    date: `${filters.dateRange?.from.split("T")[0]}:${
+      filters.dateRange?.to.split("T")[0]
+    }`,
+    ...(filters.reportType && { type: filters.reportType }),
+    ...(filters.geo && { geo: filters.geo }),
+    ...(filters.asn && { asn: filters.asn }),
+    ...(filters.ip && { ip: filters.ip }),
+  });
+
+  const { data, error, isLoading } = useSWR<Report[]>(
+    `/api/reports/list?${queryParams}`,
+    fetcher,
+    {
+      //revalidateIfStale: false,
+      revalidateOnFocus: false,
+      revalidateOnReconnect: false,
+    }
+  );
+
+  return {
+    reports: data,
+    isLoading,
+    isError: error,
+  };
 }

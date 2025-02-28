@@ -1,3 +1,4 @@
+import { FilterSettings } from "@/app/actions/filters";
 import {
   Table,
   TableBody,
@@ -6,6 +7,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useReportList } from "@/hooks/useShadowserverApi";
 
 export interface Report {
   id: string;
@@ -17,10 +19,16 @@ export interface Report {
 }
 
 interface ReportListProps {
-  reports: Report[];
+  filters: FilterSettings;
 }
 
-export function ReportList({ reports }: ReportListProps) {
+export function ReportList({ filters }: ReportListProps) {
+  const {
+    reports,
+    isLoading: reportsLoading,
+    isError: reportsError,
+  } = useReportList(filters);
+
   return (
     <Table>
       <TableHeader>
@@ -32,23 +40,24 @@ export function ReportList({ reports }: ReportListProps) {
         </TableRow>
       </TableHeader>
       <TableBody>
-        {reports.map((report) => (
-          <TableRow key={report.id}>
-            <TableCell>{report.type}</TableCell>
-            <TableCell>{report.timestamp}</TableCell>
-            <TableCell>{report.file}</TableCell>
-            <TableCell>
-              <a
-                href={`https://dl.shadowserver.org/${report.id}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-blue-500 hover:underline"
-              >
-                View Report
-              </a>
-            </TableCell>
-          </TableRow>
-        ))}
+        {reports &&
+          reports.map((report) => (
+            <TableRow key={report.id}>
+              <TableCell>{report.type}</TableCell>
+              <TableCell>{report.timestamp}</TableCell>
+              <TableCell>{report.file}</TableCell>
+              <TableCell>
+                <a
+                  href={`https://dl.shadowserver.org/${report.id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-500 hover:underline"
+                >
+                  View Report
+                </a>
+              </TableCell>
+            </TableRow>
+          ))}
       </TableBody>
     </Table>
   );

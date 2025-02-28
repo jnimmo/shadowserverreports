@@ -18,34 +18,65 @@ import {
 } from "@/components/ui/select";
 import type { DateRange } from "react-day-picker";
 import { DatePickerWithRange } from "@/components/ui/date-range-picker";
-import { SettingsModal } from "../components/SettingsModal";
-import { ReportList } from "../components/ReportList";
+import { SettingsModal } from "@/components/SettingsModal";
+import { ReportList } from "@/components/ReportList";
 // import { AdditionalFilters } from "../components/AdditionalFilters";
-import { useReportList } from "../hooks/useShadowserverApi";
+import {
+  useReportTypes,
+  useReportList,
+  useShadowserverApi,
+} from "@/hooks/useShadowserverApi";
 import {
   type FilterSettings,
   // setFilterSettings,
   // getFilterSettings,
-} from "./actions/filters";
+} from "@/app/actions/filters";
 import { ReportTypes } from "@/components/ReportTypes";
 
 export default function ShadowserverReports() {
   // const [reportTypes, setReportTypes] = useState<string[]>([]);
   const [filters, setFilters] = useState<FilterSettings>({
-    dateRange: {
-      from: "",
-      to: "",
-    },
+    dateRange: { from: "", to: "" },
   });
 
-  useEffect(() => {
-    setFilters({
-      dateRange: {
-        from: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-        to: new Date().toISOString(),
-      },
-    });
-  }, []);
+  const {
+    reports,
+    isLoading: reportsLoading,
+    isError: reportsError,
+  } = useReportList(filters) ?? {};
+
+  // useEffect(() => {
+  //   setFilters((prev) => ({
+  //     ...prev,
+  //     dateRange: {
+  //       from: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+  //       to: new Date().toISOString(),
+  //     },
+  //   }));
+
+  //   // async function loadReportTypes() {
+  //   //   const data = await fetch("/api/reports/types");
+  //   //   if (data.ok) {
+  //   //     const newReportTypes: string[] = await data.json();
+  //   //     if (newReportTypes) {
+  //   //       setReportTypes(newReportTypes);
+  //   //     }
+  //   //   }
+  //   // }
+
+  //   // loadReportTypes();
+  //   // async function loadFilters() {
+  //   //   const savedFilters = await getFilterSettings();
+  //   //   if (savedFilters) {
+  //   //     setFilters(savedFilters);
+  //   //   }
+  //   // }
+  //   // loadFilters();
+  // }, []);
+
+  // // useEffect(() => {
+  // //   setFilterSettings(filters);
+  // // }, [filters]);
 
   const handleDateRangeChange = (dateRange: DateRange | undefined) => {
     if (dateRange && dateRange?.from && dateRange?.to) {
@@ -118,7 +149,14 @@ export default function ShadowserverReports() {
               setIp={(value) => setFilters((prev) => ({ ...prev, ip: value }))}
             /> */}
           </div>
-          <ReportList filters={filters} />
+          {reportsError && (
+            <div className="text-red-500 mb-4">{reportsError}</div>
+          )}
+          {reportsLoading ? (
+            <div>Loading...</div>
+          ) : (
+            !reportsError && <ReportList reports={reports} />
+          )}
         </CardContent>
       </Card>
     </div>
