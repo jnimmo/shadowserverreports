@@ -7,7 +7,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useReportList, useReportStats } from "@/hooks/useShadowserverApi";
+import {
+  useReportDefinitions,
+  useReportList,
+  useReportStats,
+} from "@/hooks/useShadowserverApi";
 import { Suspense } from "react";
 
 export interface Report {
@@ -27,6 +31,7 @@ export function ReportList({ filters }: ReportListProps) {
   const { reports } = useReportList(filters);
 
   const { reportStats, isLoading: statsLoading } = useReportStats(filters);
+  const { reportDefinitions } = useReportDefinitions();
 
   return (
     <Table>
@@ -40,9 +45,30 @@ export function ReportList({ filters }: ReportListProps) {
       </TableHeader>
       <TableBody>
         {reports?.map((report, index) => (
-          <TableRow key={index}>
-            <TableCell>{report.timestamp}</TableCell>
-            <TableCell>{report.type}</TableCell>
+          <TableRow
+            key={index}
+            className={
+              reportDefinitions?.[report.type]?.severity === "high"
+                ? "bg-amber-50 hover:bg-amber-100"
+                : reportDefinitions?.[report.type]?.severity === "critical"
+                ? "bg-red-50 hover:bg-red-100"
+                : ""
+            }
+          >
+            <TableCell className="text-nowrap">{report.timestamp}</TableCell>
+            <TableCell>
+              {reportDefinitions?.[report.type] ? (
+                <a
+                  href={reportDefinitions[report.type].url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  {reportDefinitions[report.type].description}
+                </a>
+              ) : (
+                report.type
+              )}
+            </TableCell>
             <Suspense fallback={<TableCell>Loading...</TableCell>}>
               <TableCell>
                 {!statsLoading &&

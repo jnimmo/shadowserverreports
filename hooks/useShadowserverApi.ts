@@ -71,6 +71,26 @@ export function useReportStats(filters: FilterSettings) {
   };
 }
 
+export interface ReportDefinition {
+  severity: string;
+  description: string;
+  url: string;
+}
+
+export function useReportDefinitions() {
+  const { data, error, isLoading } = useSWR<Record<string, ReportDefinition>>(
+    `/api/reports/definitions`,
+    fetcher,
+    swrConfig
+  );
+
+  return {
+    reportDefinitions: data,
+    isLoading,
+    isError: error,
+  };
+}
+
 export function useReportTypes() {
   const queryParams = new URLSearchParams({
     date: `-365:now`,
