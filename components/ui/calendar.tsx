@@ -1,13 +1,13 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import { ChevronLeft, ChevronRight } from "lucide-react"
-import { DayPicker } from "react-day-picker"
+import * as React from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { DayPicker } from "react-day-picker";
 
-import { cn } from "@/lib/utils"
-import { buttonVariants } from "@/components/ui/button"
+import { cn } from "@/lib/utils";
+import { buttonVariants } from "@/components/ui/button";
 
-export type CalendarProps = React.ComponentProps<typeof DayPicker>
+export type CalendarProps = React.ComponentProps<typeof DayPicker>;
 
 function Calendar({
   className,
@@ -15,9 +15,27 @@ function Calendar({
   showOutsideDays = true,
   ...props
 }: CalendarProps) {
+  const utcToday = new Date(
+    Date.UTC(
+      new Date().ge tUTCFullYear(),
+      new Date().getUTCMonth(),
+      new Date().getUTCDate()
+    )
+  );
+  const utc1YearAgo = new Date(
+    Date.UTC(
+      utcToday.getUTCFullYear() - 1,
+      utcToday.getUTCMonth(),
+      utcToday.getUTCDate()
+    )
+  );
   return (
     <DayPicker
       showOutsideDays={showOutsideDays}
+      disabled={{
+        before: utc1YearAgo,
+        after: utcToday,
+      }}
       className={cn("p-3", className)}
       classNames={{
         months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
@@ -69,8 +87,8 @@ function Calendar({
       }}
       {...props}
     />
-  )
+  );
 }
-Calendar.displayName = "Calendar"
+Calendar.displayName = "Calendar";
 
-export { Calendar }
+export { Calendar };

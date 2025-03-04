@@ -12,15 +12,13 @@ import {
   DialogTrigger,
   DialogClose,
 } from "@/components/ui/dialog";
-import { setApiKey } from "../app/actions/api-key";
-import { setApiSecret } from "../app/actions/api-key";
+import { setApiConfig } from "../app/actions/api-key";
 export function SettingsModal() {
   const [apiKey, setApiKeyState] = useState("");
   const [apiSecret, setApiSecretState] = useState("");
 
   const handleSave = async () => {
-    await setApiKey(apiKey);
-    await setApiSecret(apiSecret);
+    await setApiConfig(apiKey, apiSecret);
     setApiKeyState("");
     setApiSecretState("");
     window.location.reload();

@@ -18,18 +18,19 @@ import {
 } from "@/components/ui/select";
 import type { DateRange } from "react-day-picker";
 import { DatePickerWithRange } from "@/components/ui/date-range-picker";
-import { SettingsModal } from "../components/SettingsModal";
-import { ReportList } from "../components/ReportList";
+import { SettingsModal } from "@/components/SettingsModal";
+import { ReportList } from "@/components/ReportList";
 // import { AdditionalFilters } from "../components/AdditionalFilters";
-import { useReportList } from "../hooks/useShadowserverApi";
+import { useReportList } from "@/hooks/useShadowserverApi";
 import {
   type FilterSettings,
-  // setFilterSettings,
-  // getFilterSettings,
-} from "./actions/filters";
+  setFilterSettings,
+  getFilterSettings,
+} from "@/app/actions/filters";
 import { ReportTypes } from "@/components/ReportTypes";
-import { getApiKey } from "./actions/api-key";
+import { getApiKey } from "@/app/actions/api-key";
 import { SWRConfig } from "swr";
+import { AdditionalFilters } from "@/components/AdditionalFilters";
 import { ReportDetail } from "@/components/ReportDetail";
 
 export default function ShadowserverReports() {
@@ -57,6 +58,9 @@ export default function ShadowserverReports() {
           .replace("Z", ""),
         to: new Date().toISOString().replace("Z", ""),
       },
+      asn: "",
+      geo: "",
+      ip: "",
     });
   }, []);
 
@@ -127,21 +131,23 @@ export default function ShadowserverReports() {
                 </div>
                 <SettingsModal />
               </div>
-              {/* <AdditionalFilters
-              geo={filters.geo}
-              setGeo={(value) =>
-                setFilters((prev) => ({ ...prev, geo: value }))
-              }
-              asn={filters.asn}
-              setAsn={(value) =>
-                setFilters((prev) => ({ ...prev, asn: value }))
-              }
-              ip={filters.ip}
-              setIp={(value) => setFilters((prev) => ({ ...prev, ip: value }))}
-            /> */}
+              <AdditionalFilters
+                geo={filters.geo}
+                setGeo={(value) =>
+                  setFilters((prev) => ({ ...prev, geo: value }))
+                }
+                asn={filters.asn}
+                setAsn={(value) =>
+                  setFilters((prev) => ({ ...prev, asn: value }))
+                }
+                ip={filters.ip}
+                setIp={(value) =>
+                  setFilters((prev) => ({ ...prev, ip: value }))
+                }
+              />
             </div>
             {isAuthenticated ? (
-              <ReportList filters={filters} />
+              <ReportDetail filters={filters} />
             ) : (
               <p>To get started, specify the API key in Settings</p>
             )}

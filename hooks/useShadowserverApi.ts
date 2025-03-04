@@ -3,25 +3,83 @@ import { getApiKey } from "../app/actions/api-key";
 import type { FilterSettings } from "../app/actions/filters";
 import { Report } from "@/components/ReportList";
 import useSWR from "swr/immutable";
-import { Fetcher } from "swr";
+import { Fetcher, SWRConfiguration } from "swr";
+
+const swrConfig: SWRConfiguration = {
+  //revalidateIfStale: false,
+  revalidateOnFocus: false,
+  revalidateOnReconnect: false,
+  onErrorRetry: (error, key, config, revalidate, { retryCount }) => {
+    // Never retry authentication errors
+    if (error.status === 401) return;
+    // Only retry up to 10 times.
+    if (retryCount >= 10) return;
+  },
+};
 
 async function fetcher(...args: Parameters<typeof fetch>) {
   const response = await fetch(...args);
+  if (response.status === 401) {
+    throw { status: 401, message: "Authentication error, check the API key." };
+  }
   if (!response.ok) {
-    throw new Error("Failed to fetch report types");
+    throw { status: 400, message: "Unknown error." };
   }
   return response.json();
 }
 
+async function reportStatsFetcher(...args: Parameters<typeof fetch>) {
+  const response = await fetch(...args);
+  if (response.status === 401) {
+    throw new Error("Invalid API key");
+  }
+  if (!response.ok) {
+    throw { status: 400, message: "Unknown error." };
+  }
+  const data = await response.json();
+
+  // Transform data into dictionary format
+  if (!Array.isArray(data)) {
+    throw { status: 400, message: "API response is not an array." };
+  }
+  return Object.fromEntries(
+    data
+      .slice(1)
+      .map(([date, type, events]: [string, string, number]) => [
+        `${date}_${type}`,
+        events,
+      ])
+  ) as Record<string, number>;
+}
+
+export function useReportStats(filters: FilterSettings) {
+  const queryParams = new URLSearchParams({
+    date: `${filters.dateRange?.from.split("T")[0]}:${
+      filters.dateRange?.to.split("T")[0]
+    }`,
+  });
+  const { data, error, isLoading } = useSWR<Record<string, number>>(
+    `/api/reports/stats?${queryParams}`,
+    reportStatsFetcher,
+    swrConfig
+  );
+
+  return {
+    reportStats: data,
+    isLoading,
+    isError: error,
+  };
+}
+
 export function useReportTypes() {
+  const queryParams = new URLSearchParams({
+    date: `-365:now`,
+    detail: "true",
+  });
   const { data, error, isLoading } = useSWR<string[]>(
-    `/api/reports/types`,
+    `/api/reports/types?${queryParams}`,
     fetcher,
-    {
-      revalidateIfStale: false,
-      revalidateOnFocus: false,
-      revalidateOnReconnect: false,
-    }
+    swrConfig
   );
 
   return {
@@ -32,15 +90,6 @@ export function useReportTypes() {
 }
 
 export function useReportList(filters: FilterSettings) {
-  // If no date range, return default object with empty reports
-  if (filters.dateRange && (!filters.dateRange.from || !filters.dateRange.to)) {
-    return {
-      reports: [],
-      isLoading: false,
-      isError: null,
-    };
-  }
-
   const queryParams = new URLSearchParams({
     date: `${filters.dateRange?.from.split("T")[0]}:${
       filters.dateRange?.to.split("T")[0]
@@ -54,11 +103,32 @@ export function useReportList(filters: FilterSettings) {
   const { data, error, isLoading } = useSWR<Report[]>(
     `/api/reports/list?${queryParams}`,
     fetcher,
-    {
-      //revalidateIfStale: false,
-      revalidateOnFocus: false,
-      revalidateOnReconnect: false,
-    }
+    swrConfig
+  );
+
+  return {
+    reports: data,
+    isLoading,
+    isError: error,
+  };
+}
+
+export function useReportQuery(filters: FilterSettings) {
+  const queryParams = new URLSearchParams({
+    date: `${filters.dateRange?.from.split("T")[0]}:${
+      filters.dateRange?.to.split("T")[0]
+    }`,
+    limit: "10",
+    ...(filters.reportType && { type: filters.reportType }),
+    ...(filters.geo && { geo: filters.geo }),
+    ...(filters.asn && { asn: filters.asn }),
+    ...(filters.ip && { ip: filters.ip }),
+  });
+
+  const { data, error, isLoading } = useSWR<Report[]>(
+    `/api/reports/query?${queryParams}`,
+    fetcher,
+    swrConfig
   );
 
   return {
