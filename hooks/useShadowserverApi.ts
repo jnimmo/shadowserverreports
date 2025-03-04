@@ -2,57 +2,138 @@ import { useState, useEffect } from "react";
 import { getApiKey } from "../app/actions/api-key";
 import type { FilterSettings } from "../app/actions/filters";
 import { Report } from "@/components/ReportList";
+import useSWR from "swr/immutable";
+import { Fetcher, SWRConfiguration } from "swr";
 
-export function useShadowserverApi(filters: FilterSettings) {
-  const [reports, setReports] = useState<Report[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+const swrConfig: SWRConfiguration = {
+  //revalidateIfStale: false,
+  revalidateOnFocus: false,
+  revalidateOnReconnect: false,
+  onErrorRetry: (error, key, config, revalidate, { retryCount }) => {
+    // Never retry authentication errors
+    if (error.status === 401) return;
+    // Only retry up to 10 times.
+    if (retryCount >= 10) return;
+  },
+};
 
-  useEffect(() => {
-    async function fetchReports() {
-      setLoading(true);
-      setError(null);
-      try {
-        const apiKey = await getApiKey();
-        if (!apiKey) {
-          throw new Error("API key not set");
-        }
+async function fetcher(...args: Parameters<typeof fetch>) {
+  const response = await fetch(...args);
+  if (response.status === 401) {
+    throw { status: 401, message: "Authentication error, check the API key." };
+  }
+  if (!response.ok) {
+    throw { status: 400, message: "Unknown error." };
+  }
+  return response.json();
+}
 
-        const dateFilter = `${filters.dateRange.from.split("T")[0]}:${
-          filters.dateRange.to.split("T")[0]
-        }`;
+async function reportStatsFetcher(...args: Parameters<typeof fetch>) {
+  const response = await fetch(...args);
+  if (response.status === 401) {
+    throw new Error("Invalid API key");
+  }
+  if (!response.ok) {
+    throw { status: 400, message: "Unknown error." };
+  }
+  const data = await response.json();
 
-        const queryParams = new URLSearchParams();
-        if (filters.reportType) queryParams.append("type", filters.reportType);
-        queryParams.append("date", dateFilter);
-        if (filters.geo) queryParams.append("geo", filters.geo);
-        if (filters.asn) queryParams.append("asn", filters.asn);
-        if (filters.ip) queryParams.append("ip", filters.ip);
+  // Transform data into dictionary format
+  if (!Array.isArray(data)) {
+    throw { status: 400, message: "API response is not an array." };
+  }
+  return Object.fromEntries(
+    data
+      .slice(1)
+      .map(([date, type, events]: [string, string, number]) => [
+        `${date}_${type}`,
+        events,
+      ])
+  ) as Record<string, number>;
+}
 
-        const response = await fetch(`/api/reports/list?${queryParams}`);
-        if (!response.ok) {
-          throw new Error("Failed to fetch reports");
-        }
+export function useReportStats(filters: FilterSettings) {
+  const queryParams = new URLSearchParams({
+    date: `${filters.dateRange?.from.split("T")[0]}:${
+      filters.dateRange?.to.split("T")[0]
+    }`,
+  });
+  const { data, error, isLoading } = useSWR<Record<string, number>>(
+    `/api/reports/stats?${queryParams}`,
+    reportStatsFetcher,
+    swrConfig
+  );
 
-        const data = await response.json();
-        if (data.error) {
-          throw new Error(data.error);
-        }
-        setReports(data);
-      } catch (err) {
-        if (err instanceof Error) {
-          setError(err.message);
-        } else {
-          setError(String(err));
-        }
-      } finally {
-        setLoading(false);
-      }
-    }
-    if (filters.dateRange.from && filters.dateRange.to) {
-      fetchReports();
-    }
-  }, [filters]);
+  return {
+    reportStats: data,
+    isLoading,
+    isError: error,
+  };
+}
 
-  return { reports, loading, error };
+export function useReportTypes() {
+  const queryParams = new URLSearchParams({
+    date: `-365:now`,
+    detail: "true",
+  });
+  const { data, error, isLoading } = useSWR<string[]>(
+    `/api/reports/types?${queryParams}`,
+    fetcher,
+    swrConfig
+  );
+
+  return {
+    reportTypes: data,
+    isLoading,
+    isError: error,
+  };
+}
+
+export function useReportList(filters: FilterSettings) {
+  const queryParams = new URLSearchParams({
+    date: `${filters.dateRange?.from.split("T")[0]}:${
+      filters.dateRange?.to.split("T")[0]
+    }`,
+    ...(filters.reportType && { type: filters.reportType }),
+    ...(filters.geo && { geo: filters.geo }),
+    ...(filters.asn && { asn: filters.asn }),
+    ...(filters.ip && { ip: filters.ip }),
+  });
+
+  const { data, error, isLoading } = useSWR<Report[]>(
+    `/api/reports/list?${queryParams}`,
+    fetcher,
+    swrConfig
+  );
+
+  return {
+    reports: data,
+    isLoading,
+    isError: error,
+  };
+}
+
+export function useReportQuery(filters: FilterSettings) {
+  const queryParams = new URLSearchParams({
+    date: `${filters.dateRange?.from.split("T")[0]}:${
+      filters.dateRange?.to.split("T")[0]
+    }`,
+    limit: "10",
+    ...(filters.reportType && { type: filters.reportType }),
+    ...(filters.geo && { geo: filters.geo }),
+    ...(filters.asn && { asn: filters.asn }),
+    ...(filters.ip && { ip: filters.ip }),
+  });
+
+  const { data, error, isLoading } = useSWR<Report[]>(
+    `/api/reports/query?${queryParams}`,
+    fetcher,
+    swrConfig
+  );
+
+  return {
+    reports: data,
+    isLoading,
+    isError: error,
+  };
 }

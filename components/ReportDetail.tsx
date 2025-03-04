@@ -7,7 +7,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useReportList, useReportStats } from "@/hooks/useShadowserverApi";
+import { useReportQuery, useReportStats } from "@/hooks/useShadowserverApi";
 import { Suspense } from "react";
 
 export interface Report {
@@ -23,8 +23,8 @@ interface ReportListProps {
   filters: FilterSettings;
 }
 
-export function ReportList({ filters }: ReportListProps) {
-  const { reports } = useReportList(filters);
+export function ReportDetail({ filters }: ReportListProps) {
+  const { reports } = useReportQuery(filters);
 
   const { reportStats, isLoading: statsLoading } = useReportStats(filters);
 
