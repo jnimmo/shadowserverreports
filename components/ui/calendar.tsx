@@ -17,7 +17,7 @@ function Calendar({
 }: CalendarProps) {
   const utcToday = new Date(
     Date.UTC(
-      new Date().ge tUTCFullYear(),
+      new Date().getUTCFullYear(),
       new Date().getUTCMonth(),
       new Date().getUTCDate()
     )

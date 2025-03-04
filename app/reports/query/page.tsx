@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-// import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -9,28 +8,14 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { DateRange } from "react-day-picker";
 import { DatePickerWithRange } from "@/components/ui/date-range-picker";
 import { SettingsModal } from "@/components/SettingsModal";
-import { ReportList } from "@/components/ReportList";
-// import { AdditionalFilters } from "../components/AdditionalFilters";
-import { useReportList } from "@/hooks/useShadowserverApi";
-import {
-  type FilterSettings,
-  setFilterSettings,
-  getFilterSettings,
-} from "@/app/actions/filters";
+import { type FilterSettings } from "@/app/actions/filters";
 import { ReportTypes } from "@/components/ReportTypes";
 import { getApiKey } from "@/app/actions/api-key";
 import { SWRConfig } from "swr";
-import { AdditionalFilters } from "@/components/AdditionalFilters";
 import { ReportDetail } from "@/components/ReportDetail";
 
 export default function ShadowserverReports() {
@@ -79,7 +64,7 @@ export default function ShadowserverReports() {
   return (
     <SWRConfig
       value={{
-        onError: (error, key) => {
+        onError: (error) => {
           if (error.status === 401) {
             setErrorMessage("Invalid API key");
             setIsAuthenticated(false);
@@ -131,7 +116,7 @@ export default function ShadowserverReports() {
                 </div>
                 <SettingsModal />
               </div>
-              <AdditionalFilters
+              {/* <AdditionalFilters
                 geo={filters.geo}
                 setGeo={(value) =>
                   setFilters((prev) => ({ ...prev, geo: value }))
@@ -144,7 +129,7 @@ export default function ShadowserverReports() {
                 setIp={(value) =>
                   setFilters((prev) => ({ ...prev, ip: value }))
                 }
-              />
+              /> */}
             </div>
             {isAuthenticated ? (
               <ReportDetail filters={filters} />

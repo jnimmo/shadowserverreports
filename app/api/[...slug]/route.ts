@@ -45,6 +45,7 @@ const QUERY_PARAMETERS = new Set([
   "protocol",
   "referer",
   "region",
+  "require",
   "registrar",
   "sector",
   "sha1",
@@ -107,7 +108,7 @@ export async function GET(
   }
 
   // Create the request body
-  const payloadData: any = {
+  const payloadData: Record<string, string | Record<string, string>> = {
     apikey: apiSettings.key,
   };
 

@@ -1,4 +1,3 @@
-import { getApiKey } from "@/app/actions/api-key";
 import { FilterSettings } from "@/app/actions/filters";
 import {
   Table,
@@ -9,7 +8,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useReportList, useReportStats } from "@/hooks/useShadowserverApi";
-import { Suspense, useEffect, useState } from "react";
+import { Suspense } from "react";
 
 export interface Report {
   id: string;
@@ -25,17 +24,9 @@ interface ReportListProps {
 }
 
 export function ReportList({ filters }: ReportListProps) {
-  const {
-    reports,
-    isLoading: reportsLoading,
-    isError: reportsError,
-  } = useReportList(filters);
+  const { reports } = useReportList(filters);
 
-  const {
-    reportStats,
-    isLoading: statsLoading,
-    isError: statsError,
-  } = useReportStats(filters);
+  const { reportStats, isLoading: statsLoading } = useReportStats(filters);
   console.log(reportStats);
 
   return (

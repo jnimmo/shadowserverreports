@@ -9,31 +9,17 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { DateRange } from "react-day-picker";
 import { DatePickerWithRange } from "@/components/ui/date-range-picker";
-import { SettingsModal } from "../components/SettingsModal";
-import { ReportList } from "../components/ReportList";
-// import { AdditionalFilters } from "../components/AdditionalFilters";
-import { useReportList } from "../hooks/useShadowserverApi";
-import {
-  type FilterSettings,
-  // setFilterSettings,
-  // getFilterSettings,
-} from "./actions/filters";
+import { SettingsModal } from "@/components/SettingsModal";
+import { ReportList } from "@/components/ReportList";
+import { type FilterSettings } from "@/app/actions/filters";
 import { ReportTypes } from "@/components/ReportTypes";
-import { getApiKey } from "./actions/api-key";
+import { getApiKey } from "@/app/actions/api-key";
 import { SWRConfig } from "swr";
-import { ReportDetail } from "@/components/ReportDetail";
 
 export default function ShadowserverReports() {
-  // const [reportTypes, setReportTypes] = useState<string[]>([]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [filters, setFilters] = useState<FilterSettings>({
     dateRange: {
@@ -75,7 +61,7 @@ export default function ShadowserverReports() {
   return (
     <SWRConfig
       value={{
-        onError: (error, key) => {
+        onError: (error) => {
           if (error.status === 401) {
             setErrorMessage("Invalid API key");
             setIsAuthenticated(false);

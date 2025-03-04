@@ -9,7 +9,7 @@ async function fetchAndParseMarkdown() {
   const markdown = await response.text();
 
   // Parse markdown to HTML
-  const html = parse(markdown);
+  const html = parse(markdown) as string;
 
   // Extract table data using regex
   const tableRegex =
@@ -31,6 +31,7 @@ export async function GET() {
     const data = await fetchAndParseMarkdown();
     return NextResponse.json(data);
   } catch (error) {
+    console.log(error);
     return NextResponse.json(
       { error: "Failed to fetch and parse markdown" },
       { status: 500 }

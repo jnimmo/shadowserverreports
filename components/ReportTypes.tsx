@@ -1,23 +1,11 @@
 "use client";
 
 import { useReportTypes } from "@/hooks/useShadowserverApi";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+
+import { SelectContent, SelectItem } from "@/components/ui/select";
 
 export function ReportTypes() {
-  const { reportTypes, isLoading, isError } = useReportTypes();
+  const { reportTypes } = useReportTypes();
 
   return (
     <SelectContent>
