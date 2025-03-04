@@ -33,7 +33,13 @@ export async function GET() {
   } catch (error) {
     console.log(error);
     return NextResponse.json(
-      { error: "Failed to fetch and parse markdown" },
+      {
+        error: "Failed to fetch and parse markdown",
+        headers: {
+          "Cache-Control":
+            "public, max-age=86400, stale-while-revalidate=604800",
+        },
+      },
       { status: 500 }
     );
   }

@@ -27,7 +27,6 @@ export function ReportDetail({ filters }: ReportListProps) {
   const { reports } = useReportQuery(filters);
 
   const { reportStats, isLoading: statsLoading } = useReportStats(filters);
-  console.log(reportStats);
 
   return (
     <Table>

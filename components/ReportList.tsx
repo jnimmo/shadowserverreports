@@ -27,7 +27,6 @@ export function ReportList({ filters }: ReportListProps) {
   const { reports } = useReportList(filters);
 
   const { reportStats, isLoading: statsLoading } = useReportStats(filters);
-  console.log(reportStats);
 
   return (
     <Table>
