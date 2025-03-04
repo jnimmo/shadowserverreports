@@ -14,6 +14,11 @@ API keys are securely stored in browser cookies and used by the server to proxy 
 - List reports
 - Download CSV reports
 
+### Configuration
+
+1. Create an environment variable IRONSESSION_SECRET to encrypt API secrets in user's browser cookie store, this should be at least 32 characters.
+2. (Optional) If deploying internally, you can specify the API key and secret in an environment variable so it doesn't have to be configured for each user - SHADOWSERVER_API_KEY and SHADOWSERVER_API_SECRET.
+
 ### Development
 
 First, run the development server:
