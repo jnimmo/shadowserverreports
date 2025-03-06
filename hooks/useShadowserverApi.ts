@@ -77,19 +77,19 @@ export interface ReportDefinition {
   url: string;
 }
 
-export function useReportDefinitions() {
-  const { data, error, isLoading } = useSWR<Record<string, ReportDefinition>>(
-    `/api/reports/definitions`,
-    fetcher,
-    swrConfig
-  );
+// export function useReportDefinitions() {
+//   const { data, error, isLoading } = useSWR<Record<string, ReportDefinition>>(
+//     `/api/reports/definitions`,
+//     fetcher,
+//     swrConfig
+//   );
 
-  return {
-    reportDefinitions: data,
-    isLoading,
-    isError: error,
-  };
-}
+//   return {
+//     reportDefinitions: data,
+//     isLoading,
+//     isError: error,
+//   };
+// }
 
 export function useReportTypes() {
   const queryParams = new URLSearchParams({
@@ -109,45 +109,51 @@ export function useReportTypes() {
   };
 }
 
+async function reportFetcher(url: string) {
+  const [response, definitionsResponse] = await Promise.all([
+    fetch(url),
+    fetch("/api/reports/definitions"),
+  ]);
+
+  if (response.status === 401) {
+    throw { status: 401, message: "Authentication error, check the API key." };
+  }
+  if (!response.ok) {
+    throw { status: 400, message: "Unknown error." };
+  }
+
+  const [data, definitions] = await Promise.all([
+    response.json() as Promise<Report[]>,
+    definitionsResponse.json() as Promise<Record<string, ReportDefinition>>,
+  ]);
+
+  // Add the severity from definitions dictionary to each report
+  const reports = data.toReversed().map((report) => ({
+    ...report,
+    severity: definitions[report.type]?.severity ?? "unknown",
+    definitionUrl: definitions[report.type]?.url ?? undefined,
+    description: definitions[report.type]?.description ?? undefined,
+  }));
+
+  return reports;
+}
+
 export function useReportList(filters: FilterSettings) {
   const queryParams = new URLSearchParams({
     date: `${filters.dateRange?.from.split("T")[0]}:${
       filters.dateRange?.to.split("T")[0]
     }`,
-    ...(filters.reportType && { type: filters.reportType }),
+    ...(filters.reportType &&
+      filters.reportType != "all" && { type: filters.reportType }),
     ...(filters.geo && { geo: filters.geo }),
     ...(filters.asn && { asn: filters.asn }),
     ...(filters.ip && { ip: filters.ip }),
   });
 
   const { data, error, isLoading } = useSWR<Report[]>(
-    `/api/reports/list?${queryParams}`,
-    fetcher,
-    swrConfig
-  );
-
-  return {
-    reports: data,
-    isLoading,
-    isError: error,
-  };
-}
-
-export function useReportQuery(filters: FilterSettings) {
-  const queryParams = new URLSearchParams({
-    date: `${filters.dateRange?.from.split("T")[0]}:${
-      filters.dateRange?.to.split("T")[0]
-    }`,
-    limit: "10",
-    ...(filters.reportType && { type: filters.reportType }),
-    ...(filters.geo && { geo: filters.geo }),
-    ...(filters.asn && { asn: filters.asn }),
-    ...(filters.ip && { ip: filters.ip }),
-  });
-
-  const { data, error, isLoading } = useSWR<Report[]>(
-    `/api/reports/query?${queryParams}`,
-    fetcher,
+    [`/api/reports/list?${queryParams}`],
+    ([url, reportDefinitions]: [string, ReportDefinition]) =>
+      reportFetcher(url, reportDefinitions),
     swrConfig
   );
 

@@ -1,8 +1,8 @@
 "use client";
 
-import type * as React from "react";
+import * as React from "react";
 import { CalendarIcon } from "@radix-ui/react-icons";
-import { format } from "date-fns";
+import { addDays, format } from "date-fns";
 import type { DateRange } from "react-day-picker";
 
 import { cn } from "@/lib/utils";
@@ -16,12 +16,12 @@ import {
 
 export function DatePickerWithRange({
   className,
-  date,
-  setDate,
-}: React.HTMLAttributes<HTMLDivElement> & {
-  date: DateRange | undefined;
-  setDate: (date: DateRange | undefined) => void;
-}) {
+}: React.HTMLAttributes<HTMLDivElement> & {}) {
+  const [date, setDate] = React.useState<DateRange | undefined>({
+    from: new Date(),
+    to: addDays(new Date(), -3),
+  });
+
   return (
     <div className={cn("grid gap-2", className)}>
       <Popover>
@@ -34,12 +34,12 @@ export function DatePickerWithRange({
               !date && "text-muted-foreground"
             )}
           >
-            <CalendarIcon className="mr-2 h-4 w-4" />
+            <CalendarIcon />
             {date?.from ? (
               date.to ? (
                 <>
-                  {date.from.getDate() && format(date.from, "LLL dd, y")} -{" "}
-                  {date.to.getDate() && format(date.to, "LLL dd, y")}
+                  {format(date.from, "LLL dd, y")} -{" "}
+                  {format(date.to, "LLL dd, y")}
                 </>
               ) : (
                 format(date.from, "LLL dd, y")

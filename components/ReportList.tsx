@@ -3,6 +3,7 @@ import {
   Table,
   TableBody,
   TableCell,
+  TableFooter,
   TableHead,
   TableHeader,
   TableRow,
@@ -21,6 +22,10 @@ export interface Report {
   url: string;
   report: string;
   file: string;
+  rows?: number;
+  severity?: string;
+  definitionUrl?: string;
+  description?: string;
 }
 
 interface ReportListProps {
@@ -29,9 +34,8 @@ interface ReportListProps {
 
 export function ReportList({ filters }: ReportListProps) {
   const { reports } = useReportList(filters);
-
   const { reportStats, isLoading: statsLoading } = useReportStats(filters);
-  const { reportDefinitions } = useReportDefinitions();
+  // const { reportDefinitions } = useReportDefinitions();
 
   return (
     <Table>
@@ -44,50 +48,54 @@ export function ReportList({ filters }: ReportListProps) {
         </TableRow>
       </TableHeader>
       <TableBody>
-        {reports?.map((report, index) => (
-          <TableRow
-            key={index}
-            className={
-              reportDefinitions?.[report.type]?.severity === "high"
-                ? "bg-amber-50 hover:bg-amber-100"
-                : reportDefinitions?.[report.type]?.severity === "critical"
-                ? "bg-red-50 hover:bg-red-100"
-                : ""
-            }
-          >
-            <TableCell className="text-nowrap">{report.timestamp}</TableCell>
-            <TableCell>
-              {reportDefinitions?.[report.type] ? (
-                <a
-                  href={reportDefinitions[report.type].url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  {reportDefinitions[report.type].description}
-                </a>
-              ) : (
-                report.type
-              )}
-            </TableCell>
-            <Suspense fallback={<TableCell>Loading...</TableCell>}>
+        {reports
+          ?.filter(
+            (report) =>
+              !filters.severity ||
+              filters.severity == "any" ||
+              report.severity === filters.severity
+          )
+          .map((report, index) => (
+            <TableRow
+              key={index}
+              className={
+                report.severity === "high"
+                  ? "bg-amber-50 hover:bg-amber-100"
+                  : report.severity === "critical"
+                  ? "bg-red-50 hover:bg-red-100"
+                  : ""
+              }
+            >
+              <TableCell className="text-nowrap">{report.timestamp}</TableCell>
+              <TableCell>
+                {report.definitionUrl ? (
+                  <a
+                    href={report.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {report.description}
+                  </a>
+                ) : (
+                  report.type
+                )}
+              </TableCell>
               <TableCell>
                 {!statsLoading &&
-                  reportStats &&
-                  reportStats[`${report.timestamp}_${report.type}`]}
+                  reportStats?.[`${report.timestamp}_${report.type}`]}
               </TableCell>
-            </Suspense>
-            <TableCell>
-              <a
-                href={`https://dl.shadowserver.org/${report.id}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-blue-500 hover:underline"
-              >
-                {report.file}
-              </a>
-            </TableCell>
-          </TableRow>
-        ))}
+              <TableCell>
+                <a
+                  href={`https://dl.shadowserver.org/${report.id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-500 hover:underline"
+                >
+                  {report.file}
+                </a>
+              </TableCell>
+            </TableRow>
+          ))}
       </TableBody>
     </Table>
   );

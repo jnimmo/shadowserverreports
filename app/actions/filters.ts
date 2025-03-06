@@ -2,13 +2,14 @@
 
 import { cookies } from "next/headers";
 
-export interface FilterSettings {
+export type FilterSettings = {
   reportType?: string;
   dateRange: { from: string; to: string };
   geo?: string;
   asn?: string;
   ip?: string;
-}
+  severity?: string;
+};
 
 export async function setFilterSettings(settings: FilterSettings) {
   const cookieStore = await cookies();

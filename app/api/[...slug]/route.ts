@@ -102,7 +102,7 @@ export async function GET(
   if (
     slug.length !== 2 ||
     slug[0] !== "reports" ||
-    !["list", "types", "stats", "query"].includes(slug[1])
+    !["list", "types", "stats", "query", "schema"].includes(slug[1])
   ) {
     return Response.json({ error: "Invalid request" }, { status: 400 });
   }
