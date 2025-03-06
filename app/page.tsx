@@ -46,30 +46,18 @@ export default function ShadowserverReports() {
         },
       }}
     >
-      <div className="flex flex-col space-y-4 mb-6">
-        <div className="flex justify-between items-center">
-          <Suspense>
+      {" "}
+      <Suspense>
+        <div className="flex flex-col space-y-4 mb-6">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <Filters
               filters={filters}
               setFilters={setFilters}
               isAuthenticated={isAuthenticated}
             />
-          </Suspense>
-          <SettingsModal />
+          </div>
         </div>
-        {/* <AdditionalFilters
-              geo={filters.geo}
-              setGeo={(value) =>
-                setFilters((prev) => ({ ...prev, geo: value }))
-              }
-              asn={filters.asn}
-              setAsn={(value) =>
-                setFilters((prev) => ({ ...prev, asn: value }))
-              }
-              ip={filters.ip}
-              setIp={(value) => setFilters((prev) => ({ ...prev, ip: value }))}
-            /> */}
-      </div>
+      </Suspense>
       {isAuthenticated ? (
         <ReportList filters={filters} />
       ) : (

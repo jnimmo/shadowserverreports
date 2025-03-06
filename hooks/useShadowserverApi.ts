@@ -109,7 +109,7 @@ export function useReportTypes() {
   };
 }
 
-async function reportFetcher(url: string) {
+async function reportFetcher(url: string, reportDefinitions: ReportDefinition) {
   const [response, definitionsResponse] = await Promise.all([
     fetch(url),
     fetch("/api/reports/definitions"),

@@ -1,7 +1,6 @@
 import { type FilterSettings } from "@/app/actions/filters";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect } from "react";
-import type { DateRange } from "react-day-picker";
+import { useCallback, useEffect, useState } from "react";
 import { DatePickerWithRange } from "@/components/ui/date-range-picker";
 import {
   Select,
@@ -11,6 +10,8 @@ import {
   SelectValue,
 } from "./ui/select";
 import { ReportTypes } from "./ReportTypes";
+import { useDebouncedCallback } from "use-debounce";
+import { SettingsModal } from "./SettingsModal";
 
 export function Filters({
   filters,
@@ -39,58 +40,93 @@ export function Filters({
     [searchParams]
   );
 
-  const handleDateRangeChange = (dateRange: DateRange | undefined) => {
-    if (dateRange && dateRange?.from && dateRange?.to) {
-      setFilters({
-        ...filters,
-        dateRange: {
-          from: dateRange.from?.toISOString() ?? "",
-          to: dateRange.to?.toISOString() ?? "",
-        },
-      });
+  const updateQueryString = (filters: FilterSettings) => {
+    const params = new URLSearchParams();
+    if (filters.reportType && filters.reportType !== "all") {
+      params.set("report", filters.reportType);
     }
+    if (filters.severity && filters.severity !== "any") {
+      params.set("severity", filters.severity);
+    }
+    return params.toString();
   };
 
   useEffect(() => {
-    setFilters({
+    const reportType = searchParams.get("report") ?? "all";
+    const severity = searchParams.get("severity") ?? "any";
+
+    const newFilters = {
       ...filters,
-      reportType: searchParams.get("report") ?? "",
-      severity: searchParams.get("severity") ?? "",
-    });
-  }, [searchParams, setFilters]);
+      reportType,
+      severity,
+    };
+
+    // Only update if values actually changed
+    if (filters.reportType !== reportType || filters.severity !== severity) {
+      setFilters(newFilters);
+      setLocalFilters(newFilters); // Sync local state
+    }
+
+    return () => {
+      // Cleanup any pending updates
+      debouncedSetFilters.cancel();
+    };
+  }, [filters, searchParams, setFilters]);
+
+  // Local state for immediate UI updates
+  const [localFilters, setLocalFilters] = useState(filters);
+
+  // Debounced callback for updating global state
+  const debouncedSetFilters = useDebouncedCallback(
+    (newFilters: FilterSettings) => {
+      setFilters(newFilters);
+    },
+    500 // 500ms delay
+  );
+
+  // Update local state immediately, debounce global updates
+  const handleFilterChange = (updates: Partial<FilterSettings>) => {
+    // Reset severity when report type changes
+    const resetSeverity = updates.reportType ? { severity: "any" } : {};
+
+    const newFilters = {
+      ...localFilters,
+      ...updates,
+      ...resetSeverity, // Apply severity reset last to ensure it takes precedence
+    };
+    setLocalFilters(newFilters);
+    debouncedSetFilters(newFilters);
+
+    // Update URL with all active filters
+    const queryString = updateQueryString(newFilters);
+    router.push(`${pathname}${queryString ? `?${queryString}` : ""}`);
+  };
 
   return (
-    <div className="flex items-center space-x-4">
+    <div className="flex flex-wrap gap-4 w-full">
       <Select
-        value={filters.reportType}
+        value={localFilters.reportType}
         required={false}
         onValueChange={(value) => {
-          router.push(
-            `${pathname}${value === "all" ? "" : `?report=${value}`}`
-          );
+          handleFilterChange({ reportType: value });
         }}
       >
-        <SelectTrigger className="w-[160px]">
+        <SelectTrigger className="w-1/4">
           <SelectValue placeholder="Select report type" />
         </SelectTrigger>
         {isAuthenticated && <ReportTypes />}
       </Select>
 
       <DatePickerWithRange
-      // date={{
-      //   from: new Date(filters.dateRange.from),
-      //   to: new Date(filters.dateRange.to),
-      // }}
-      // setDate={handleDateRangeChange}
+        className=""
+        filters={localFilters}
+        setFilters={handleFilterChange}
       />
       <Select
-        value={filters.severity}
+        value={localFilters.severity}
         required={false}
         onValueChange={(value) => {
-          setFilters({
-            ...filters,
-            severity: value,
-          });
+          handleFilterChange({ severity: value });
           router.push(
             pathname +
               "?" +
@@ -98,7 +134,7 @@ export function Filters({
           );
         }}
       >
-        <SelectTrigger className="w-[120px]">
+        <SelectTrigger className="w-1/6">
           <SelectValue placeholder="Severity" />
         </SelectTrigger>
         <SelectContent>
@@ -109,6 +145,7 @@ export function Filters({
           <SelectItem value="critical">Critical</SelectItem>
         </SelectContent>
       </Select>
+      <SettingsModal />
     </div>
   );
 }
