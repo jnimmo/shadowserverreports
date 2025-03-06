@@ -7,12 +7,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  useReportDefinitions,
-  useReportList,
-  useReportStats,
-} from "@/hooks/useShadowserverApi";
-import { Suspense } from "react";
+import { useReportList, useReportStats } from "@/hooks/useShadowserverApi";
 
 export interface Report {
   id: string;
@@ -21,74 +16,94 @@ export interface Report {
   url: string;
   report: string;
   file: string;
+  rows?: number;
+  severity?: string;
+  definitionUrl?: string;
+  description?: string;
 }
 
-interface ReportListProps {
-  filters: FilterSettings;
-}
-
-export function ReportList({ filters }: ReportListProps) {
-  const { reports } = useReportList(filters);
-
+export function ReportList({ filters }: { filters: FilterSettings }) {
+  const { reports, isLoading } = useReportList(filters);
   const { reportStats, isLoading: statsLoading } = useReportStats(filters);
-  const { reportDefinitions } = useReportDefinitions();
+  // const { reportDefinitions } = useReportDefinitions();
 
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Date (UTC)</TableHead>
-          <TableHead>Type</TableHead>
-          <TableHead>Records</TableHead>
-          <TableHead>Download</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {reports?.map((report, index) => (
-          <TableRow
-            key={index}
-            className={
-              reportDefinitions?.[report.type]?.severity === "high"
-                ? "bg-amber-50 hover:bg-amber-100"
-                : reportDefinitions?.[report.type]?.severity === "critical"
-                ? "bg-red-50 hover:bg-red-100"
-                : ""
-            }
-          >
-            <TableCell className="text-nowrap">{report.timestamp}</TableCell>
-            <TableCell>
-              {reportDefinitions?.[report.type] ? (
-                <a
-                  href={reportDefinitions[report.type].url}
-                  target="_blank"
-                  rel="noopener noreferrer"
+    <div>
+      <div>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Date (UTC)</TableHead>
+              <TableHead>Type</TableHead>
+              <TableHead>Records</TableHead>
+              <TableHead>Download</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {isLoading && (
+              <TableRow>
+                <TableCell>Loading</TableCell>
+                <TableCell></TableCell>
+                <TableCell></TableCell>
+                <TableCell></TableCell>
+              </TableRow>
+            )}
+            {reports
+              ?.filter(
+                (report) =>
+                  (!filters.severity ||
+                    filters.severity == "any" ||
+                    report.severity === filters.severity) &&
+                  (filters.reportType === report.type ||
+                    !filters.reportType ||
+                    filters.reportType == "all")
+              )
+              .map((report, index) => (
+                <TableRow
+                  key={index}
+                  className={
+                    report.severity === "high"
+                      ? "bg-amber-50 hover:bg-amber-100"
+                      : report.severity === "critical"
+                      ? "bg-red-50 hover:bg-red-100"
+                      : ""
+                  }
                 >
-                  {reportDefinitions[report.type].description}
-                </a>
-              ) : (
-                report.type
-              )}
-            </TableCell>
-            <Suspense fallback={<TableCell>Loading...</TableCell>}>
-              <TableCell>
-                {!statsLoading &&
-                  reportStats &&
-                  reportStats[`${report.timestamp}_${report.type}`]}
-              </TableCell>
-            </Suspense>
-            <TableCell>
-              <a
-                href={`https://dl.shadowserver.org/${report.id}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-blue-500 hover:underline"
-              >
-                {report.file}
-              </a>
-            </TableCell>
-          </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+                  <TableCell className="text-nowrap">
+                    {report.timestamp}
+                  </TableCell>
+                  <TableCell>
+                    {report.definitionUrl ? (
+                      <a
+                        href={report.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        {report.description}
+                      </a>
+                    ) : (
+                      report.type
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {!statsLoading &&
+                      reportStats?.[`${report.timestamp}_${report.type}`]}
+                  </TableCell>
+                  <TableCell>
+                    <a
+                      href={`https://dl.shadowserver.org/${report.id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-500 hover:underline"
+                    >
+                      {report.file}
+                    </a>
+                  </TableCell>
+                </TableRow>
+              ))}
+          </TableBody>
+        </Table>
+      </div>
+    </div>
   );
 }

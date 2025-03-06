@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { GearIcon } from "@radix-ui/react-icons";
 import {
   Dialog,
   DialogContent,
@@ -27,7 +28,10 @@ export function SettingsModal() {
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <Button variant="outline">Settings</Button>
+        <Button variant="outline">
+          <GearIcon className="h-4 w-4 md:mr-2 md:h-5 md:w-5 md:hidden" />
+          <span className="hidden md:inline">Settings</span>
+        </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>

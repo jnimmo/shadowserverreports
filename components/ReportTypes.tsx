@@ -9,6 +9,7 @@ export function ReportTypes() {
 
   return (
     <SelectContent>
+      <SelectItem value="all">All reports</SelectItem>
       {reportTypes &&
         reportTypes.map((type) => (
           <SelectItem key={type} value={type}>
