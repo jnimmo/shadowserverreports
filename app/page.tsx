@@ -1,8 +1,6 @@
 "use client";
 
 import { useState, useEffect, Suspense } from "react";
-
-import { SettingsModal } from "@/components/SettingsModal";
 import { ReportList } from "@/components/ReportList";
 import { type FilterSettings } from "@/app/actions/filters";
 import { getApiKey } from "@/app/actions/api-key";

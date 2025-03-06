@@ -22,10 +22,6 @@ export interface Report {
   description?: string;
 }
 
-interface ReportListProps {
-  filters: FilterSettings;
-}
-
 export function ReportList({ filters }: { filters: FilterSettings }) {
   const { reports, isLoading } = useReportList(filters);
   const { reportStats, isLoading: statsLoading } = useReportStats(filters);

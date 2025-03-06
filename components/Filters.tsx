@@ -51,6 +51,17 @@ export function Filters({
     return params.toString();
   };
 
+  // Local state for immediate UI updates
+  const [localFilters, setLocalFilters] = useState(filters);
+
+  // Debounced callback for updating global state
+  const debouncedSetFilters = useDebouncedCallback(
+    (newFilters: FilterSettings) => {
+      setFilters(newFilters);
+    },
+    500 // 500ms delay
+  );
+
   useEffect(() => {
     const reportType = searchParams.get("report") ?? "all";
     const severity = searchParams.get("severity") ?? "any";
@@ -71,18 +82,7 @@ export function Filters({
       // Cleanup any pending updates
       debouncedSetFilters.cancel();
     };
-  }, [filters, searchParams, setFilters]);
-
-  // Local state for immediate UI updates
-  const [localFilters, setLocalFilters] = useState(filters);
-
-  // Debounced callback for updating global state
-  const debouncedSetFilters = useDebouncedCallback(
-    (newFilters: FilterSettings) => {
-      setFilters(newFilters);
-    },
-    500 // 500ms delay
-  );
+  }, [filters, searchParams, setFilters, debouncedSetFilters]);
 
   // Update local state immediately, debounce global updates
   const handleFilterChange = (updates: Partial<FilterSettings>) => {
@@ -118,7 +118,6 @@ export function Filters({
       </Select>
 
       <DatePickerWithRange
-        className=""
         filters={localFilters}
         setFilters={handleFilterChange}
       />

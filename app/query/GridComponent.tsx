@@ -45,7 +45,7 @@ const GridComponent = ({ filters }: { filters: AdditionalFilterValues }) => {
         params.append(key, filters[key as keyof AdditionalFilterValues]!);
       }
     }
-    const newQueryUri = `/api/reports/query?${params}&limit=10&sort=descending`;
+    const newQueryUri = `/api/reports/query?${params}&sort=descending`;
     // if the query string has changed, update the state and fetch the data
     if (params && queryUri !== newQueryUri) {
       setQueryUri(newQueryUri);
