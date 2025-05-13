@@ -146,5 +146,9 @@ export async function GET(
   }
   const outcome = await result.json();
 
-  return Response.json(outcome);
+  return Response.json(outcome, {
+    headers: {
+      "Cache-Control": "private, max-age=3600, stale-while-revalidate",
+    },
+  });
 }
