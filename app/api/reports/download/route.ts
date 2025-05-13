@@ -34,7 +34,12 @@ export async function GET(request: NextRequest) {
       skipEmptyLines: true,
     });
 
-    return Response.json(parsedData.data);
+    return Response.json(parsedData.data, {
+      headers: {
+        "Cache-Control":
+          "max-age=604800, s-maxage=604800, stale-while-revalidate",
+      },
+    });
   } catch (error) {
     console.error("Error processing report:", error);
     return Response.json(

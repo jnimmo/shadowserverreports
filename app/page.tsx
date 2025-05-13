@@ -17,11 +17,12 @@ export default function ShadowserverReports() {
       to: new Date().toISOString().replace("Z", ""),
     },
   });
-
+  const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   useEffect(() => {
     getApiKey().then((key) => {
       setIsAuthenticated(!!key);
+      setIsLoading(false);
     });
     setFilters({
       dateRange: {
@@ -55,15 +56,15 @@ export default function ShadowserverReports() {
             />
           </div>
         </div>
+        {isAuthenticated && !isLoading ? (
+          <ReportList filters={filters} />
+        ) : (
+          <p>To get started, specify the API key in Settings</p>
+        )}
+        {errorMessage && (
+          <p className="text-red-500 text-sm mt-4">{errorMessage}</p>
+        )}
       </Suspense>
-      {isAuthenticated ? (
-        <ReportList filters={filters} />
-      ) : (
-        <p>To get started, specify the API key in Settings</p>
-      )}
-      {errorMessage && (
-        <p className="text-red-500 text-sm mt-4">{errorMessage}</p>
-      )}
     </SWRConfig>
   );
 }

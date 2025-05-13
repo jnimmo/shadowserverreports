@@ -37,7 +37,8 @@ export async function GET() {
     const data = await fetchAndParseMarkdown();
     return NextResponse.json(data, {
       headers: {
-        "Cache-Control": "public, max-age=86400, stale-while-revalidate=604800",
+        "Cache-Control":
+          "public, s-max-age=86400, max-age=86400, stale-while-revalidate=604800",
       },
     });
   } catch (error) {
