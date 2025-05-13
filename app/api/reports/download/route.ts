@@ -36,6 +36,7 @@ export async function GET(request: NextRequest) {
 
     return Response.json(parsedData.data);
   } catch (error) {
+    console.error("Error processing report:", error);
     return Response.json(
       { error: "Failed to process report" },
       { status: 500 }

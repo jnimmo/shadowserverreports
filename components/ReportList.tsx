@@ -8,8 +8,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useReportList, useReportStats } from "@/hooks/useShadowserverApi";
-import { Button } from "@/components/ui/button";
-import { useRouter } from "next/navigation";
 import { DownloadIcon, ReaderIcon } from "@radix-ui/react-icons";
 import Link from "next/link";
 
@@ -27,7 +25,6 @@ export interface Report {
 }
 
 export function ReportList({ filters }: { filters: FilterSettings }) {
-  const router = useRouter();
   const { reports, isLoading } = useReportList(filters);
   const { reportStats, isLoading: statsLoading } = useReportStats(filters);
 

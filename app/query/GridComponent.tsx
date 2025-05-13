@@ -5,7 +5,6 @@ import { AgGridReact } from "ag-grid-react";
 import { useEffect, useState } from "react";
 import type { ColDef } from "ag-grid-community";
 import { AllCommunityModule, ModuleRegistry } from "ag-grid-community";
-import { AdditionalFilterValues } from "./AdditionalFilters";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
