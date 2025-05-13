@@ -17,21 +17,33 @@ export function Breadcrumb({ items, className }: BreadcrumbProps) {
     <nav className={cn("flex items-center space-x-1 text-sm", className)}>
       {items.map((item, index) => {
         const isLast = index === items.length - 1;
-        const Component = item.href ? Link : "span";
 
         return (
           <div key={item.label} className="flex items-center">
-            <Component
-              {...(item.href ? { href: item.href } : {})}
-              className={cn(
-                "hover:text-foreground transition-colors",
-                isLast
-                  ? "text-foreground font-medium"
-                  : "text-muted-foreground hover:underline"
-              )}
-            >
-              {item.label}
-            </Component>
+            {item.href ? (
+              <Link
+                href={item.href}
+                className={cn(
+                  "hover:text-foreground transition-colors",
+                  isLast
+                    ? "text-foreground font-medium"
+                    : "text-muted-foreground hover:underline"
+                )}
+              >
+                {item.label}
+              </Link>
+            ) : (
+              <span
+                className={cn(
+                  "hover:text-foreground transition-colors",
+                  isLast
+                    ? "text-foreground font-medium"
+                    : "text-muted-foreground hover:underline"
+                )}
+              >
+                {item.label}
+              </span>
+            )}
             {!isLast && (
               <ChevronRightIcon className="h-4 w-4 text-muted-foreground mx-1" />
             )}
