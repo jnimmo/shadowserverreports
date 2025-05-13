@@ -15,13 +15,7 @@ export default function ShadowserverReportPage() {
     });
   return (
     <>
-      <Suspense>
-        <AdditionalFilters
-          filters={additionalFilters}
-          setFilters={setAdditionalFilters}
-        />
-      </Suspense>
-      <GridComponent filters={additionalFilters} />
+      <GridComponent />
     </>
   );
 }

@@ -8,6 +8,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useReportList, useReportStats } from "@/hooks/useShadowserverApi";
+import { Button } from "@/components/ui/button";
+import { useRouter } from "next/navigation";
+import { DownloadIcon, ReaderIcon } from "@radix-ui/react-icons";
+import Link from "next/link";
 
 export interface Report {
   id: string;
@@ -23,9 +27,9 @@ export interface Report {
 }
 
 export function ReportList({ filters }: { filters: FilterSettings }) {
+  const router = useRouter();
   const { reports, isLoading } = useReportList(filters);
   const { reportStats, isLoading: statsLoading } = useReportStats(filters);
-  // const { reportDefinitions } = useReportDefinitions();
 
   return (
     <div>
@@ -36,7 +40,7 @@ export function ReportList({ filters }: { filters: FilterSettings }) {
               <TableHead>Date (UTC)</TableHead>
               <TableHead>Type</TableHead>
               <TableHead>Records</TableHead>
-              <TableHead>Download</TableHead>
+              <TableHead>Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -90,14 +94,25 @@ export function ReportList({ filters }: { filters: FilterSettings }) {
                       reportStats?.[`${report.timestamp}_${report.type}`]}
                   </TableCell>
                   <TableCell>
-                    <a
-                      href={`https://dl.shadowserver.org/${report.id}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-500 hover:underline"
-                    >
-                      {report.file}
-                    </a>
+                    <div className="flex gap-2">
+                      <a
+                        href={`https://dl.shadowserver.org/${report.id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        aria-label="Download report"
+                        title="Download report"
+                        className="text-blue-500 hover:underline"
+                      >
+                        <DownloadIcon className="h-4 w-4 text-muted-foreground mx-1" />
+                      </a>
+                      <Link
+                        href={`/query?reportId=${report.id}&type=${report.type}&timestamp=${report.timestamp}`}
+                        prefetch={false}
+                        title="View report"
+                      >
+                        <ReaderIcon />
+                      </Link>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
