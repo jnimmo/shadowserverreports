@@ -4,14 +4,16 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 ## Introduction
 
-This project provides Shadowserver API subscribers with a web interface to list and download available reports.
+This project is an *unoffical* web interface for Shadowserver API subscribers to view/download Shadowserver reports.
+While it is preferable for subscribers to ingest data into their own platforms, this tool can be helpful for analysts who may need to review ad-hoc reports.
 
-API keys are securely stored in browser cookies and used by the server to proxy requests to the Shadowserver API.
+Self host or use the Vercel hosted deployment at [Report Viewer for Shadowserver](https://shadowserverreportviewer.vercel.app)
 
 ### Features
 
 - Filter by report type and date range
 - List reports
+- View reports (using Ag-Grid)
 - Download CSV reports
 
 ### Configuration
