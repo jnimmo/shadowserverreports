@@ -101,8 +101,11 @@ export async function GET(
   }
   if (
     slug.length !== 2 ||
-    slug[0] !== "reports" ||
-    !["list", "types", "stats", "query", "schema"].includes(slug[1])
+    !(
+      (slug[0] === "reports" &&
+        ["list", "types", "stats", "query", "schema"].includes(slug[1])) ||
+      (slug[0] === "key" && slug[1] === "info")
+    )
   ) {
     return Response.json({ error: "Invalid request" }, { status: 400 });
   }

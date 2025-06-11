@@ -8,8 +8,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useReportList, useReportStats } from "@/hooks/useShadowserverApi";
-import { DownloadIcon, ReaderIcon } from "@radix-ui/react-icons";
-import Link from "next/link";
+import { DownloadIcon } from "@radix-ui/react-icons";
+import { ViewReportButton } from "./ViewReportButton";
 
 export interface Report {
   id: string;
@@ -102,13 +102,10 @@ export function ReportList({ filters }: { filters: FilterSettings }) {
                       >
                         <DownloadIcon className="h-4 w-4 text-muted-foreground mx-1" />
                       </a>
-                      <Link
-                        href={`/query?reportId=${report.id}&type=${report.type}&timestamp=${report.timestamp}`}
-                        prefetch={false}
-                        title="View report"
-                      >
-                        <ReaderIcon />
-                      </Link>
+                      <ViewReportButton
+                        link={`/query?reportId=${report.id}&type=${report.type}&timestamp=${report.timestamp}`}
+                        reportId={report.id}
+                      />
                     </div>
                   </TableCell>
                 </TableRow>
