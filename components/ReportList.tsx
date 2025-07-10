@@ -10,6 +10,7 @@ import {
 import { useReportList, useReportStats } from "@/hooks/useShadowserverApi";
 import { DownloadIcon } from "@radix-ui/react-icons";
 import { ViewReportButton } from "./ViewReportButton";
+import { useState } from "react";
 
 export interface Report {
   id: string;
@@ -24,9 +25,50 @@ export interface Report {
   description?: string;
 }
 
+type SortBy = "date" | "type" | "records";
+
 export function ReportList({ filters }: { filters: FilterSettings }) {
   const { reports, isLoading } = useReportList(filters);
   const { reportStats, isLoading: statsLoading } = useReportStats(filters);
+  const [sortBy, setSortBy] = useState<SortBy>("date");
+
+  const toggleSort = (newSort: SortBy) => {
+    setSortBy(newSort);
+  };
+
+  const getSortLabel = (col: SortBy) => (sortBy === col ? " (sorted)" : "");
+
+  const getSortOrder = (a: Report, b: Report) => {
+    if (sortBy === "date") {
+      const dateDiff = b.timestamp.localeCompare(a.timestamp);
+      if (dateDiff !== 0) return dateDiff;
+      const severityOrder = {
+        critical: 4,
+        high: 3,
+        medium: 2,
+        low: 1,
+        unknown: 0,
+      } as const;
+      type Severity = keyof typeof severityOrder;
+      const sevDiff =
+        severityOrder[(b.severity ?? "unknown") as Severity] -
+        severityOrder[(a.severity ?? "unknown") as Severity];
+      if (sevDiff !== 0) return sevDiff;
+      return (a.description ?? a.type).localeCompare(b.description ?? b.type);
+    } else if (sortBy === "type") {
+      const typeDiff = (a.description ?? a.type).localeCompare(
+        b.description ?? b.type
+      );
+      if (typeDiff !== 0) return typeDiff;
+      return b.timestamp.localeCompare(a.timestamp);
+    } else {
+      // sortBy === "records"
+      const aRec = reportStats?.[`${a.timestamp}_${a.type}`] ?? 0;
+      const bRec = reportStats?.[`${b.timestamp}_${b.type}`] ?? 0;
+      if (aRec !== bRec) return bRec - aRec;
+      return b.timestamp.localeCompare(a.timestamp);
+    }
+  };
 
   return (
     <div>
@@ -34,9 +76,24 @@ export function ReportList({ filters }: { filters: FilterSettings }) {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Date (UTC)</TableHead>
-              <TableHead>Type</TableHead>
-              <TableHead>Records</TableHead>
+              <TableHead
+                onClick={() => toggleSort("date")}
+                style={{ cursor: "pointer" }}
+              >
+                Date (UTC){getSortLabel("date")}
+              </TableHead>
+              <TableHead
+                onClick={() => toggleSort("type")}
+                style={{ cursor: "pointer" }}
+              >
+                Type{getSortLabel("type")}
+              </TableHead>
+              <TableHead
+                onClick={() => toggleSort("records")}
+                style={{ cursor: "pointer" }}
+              >
+                Records{getSortLabel("records")}
+              </TableHead>
               <TableHead>Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -59,14 +116,19 @@ export function ReportList({ filters }: { filters: FilterSettings }) {
                     !filters.reportType ||
                     filters.reportType == "all")
               )
+              .sort(getSortOrder)
               .map((report, index) => (
                 <TableRow
                   key={index}
                   className={
-                    report.severity === "high"
-                      ? "bg-amber-50 hover:bg-amber-100"
-                      : report.severity === "critical"
+                    report.severity === "critical"
                       ? "bg-red-50 hover:bg-red-100"
+                      : report.severity === "high"
+                      ? "bg-amber-50 hover:bg-amber-100"
+                      : report.severity === "medium"
+                      ? "bg-blue-50 hover:bg-blue-100"
+                      : report.severity === "low"
+                      ? "bg-green-50 hover:bg-green-100"
                       : ""
                   }
                 >
