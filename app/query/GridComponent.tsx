@@ -97,8 +97,9 @@ const GridComponent = () => {
           setIsLoading(false);
         });
     }
-  }, [reportId, searchParams]);
+  }, [reportId]); // Removed searchParams dependency to prevent refetching on grouping changes
 
+  // Separate useEffect for handling URL parameters that don't require data refetching
   useEffect(() => {
     if (reportInfo) {
       document.title = `Shadowserver Report - ${reportInfo.type} / ${reportInfo.timestamp}`;
