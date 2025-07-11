@@ -26,6 +26,7 @@ const GridComponent = () => {
   const router = useRouter();
   const reportId = searchParams.get("reportId");
   const [gridApi, setGridApi] = useState<GridApi | null>(null);
+  const [isInitialized, setIsInitialized] = useState(false);
 
   useEffect(() => {
     if (reportId) {
@@ -97,6 +98,41 @@ const GridComponent = () => {
       document.title = `Shadowserver Report - ${reportInfo.type} / ${reportInfo.timestamp}`;
     }
   }, [reportInfo]);
+
+  // Apply initial groupings from URL
+  useEffect(() => {
+    if (gridApi && columnDefs.length > 0 && !isInitialized) {
+      const groupCols = searchParams.get("group");
+      if (groupCols) {
+        try {
+          const columns = groupCols.split(",").filter(Boolean);
+          // Verify columns exist before applying groupings
+          const validColumns = columns.filter((colId) =>
+            columnDefs.some((colDef) => colDef.field === colId)
+          );
+          if (validColumns.length > 0) {
+            gridApi.setRowGroupColumns(validColumns);
+          }
+        } catch (error) {
+          console.error("Error applying initial groupings:", error);
+        }
+      }
+      setIsInitialized(true);
+    }
+  }, [gridApi, columnDefs, searchParams, isInitialized]);
+
+  // Update URL when groupings change
+  const updateGroupingsInUrl = (groupCols: string[]) => {
+    if (!isInitialized) return; // Don't update URL during initial load
+
+    const url = new URL(window.location.href);
+    if (groupCols.length > 0) {
+      url.searchParams.set("group", groupCols.join(","));
+    } else {
+      url.searchParams.delete("group");
+    }
+    router.replace(url.pathname + url.search, { scroll: false });
+  };
 
   useEffect(() => {
     // if (gridApi && rowData.length > 0) {
@@ -200,6 +236,12 @@ const GridComponent = () => {
           animateRows={true}
           onGridReady={(params) => {
             setGridApi(params.api);
+          }}
+          onColumnRowGroupChanged={(params) => {
+            const groupCols = params.api
+              .getRowGroupColumns()
+              .map((col: any) => col.getColId());
+            updateGroupingsInUrl(groupCols);
           }}
           getContextMenuItems={getContextMenuItems}
         />
