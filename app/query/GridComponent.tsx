@@ -93,15 +93,67 @@ const GridComponent = () => {
   }, [reportId, searchParams]);
 
   useEffect(() => {
-    if (gridApi && rowData.length > 0) {
-      setTimeout(() => {
-        gridApi.sizeColumnsToFit();
-      }, 50);
-    }
+    // if (gridApi && rowData.length > 0) {
+    //   setTimeout(() => {
+    //     gridApi.sizeColumnsToFit();
+    //   }, 100);
+    // }
   }, [gridApi, rowData]);
 
   const handleClose = () => {
     router.push("/");
+  };
+
+  const getContextMenuItems = (params: any) => {
+    const { node, column, value, api, columnApi } = params;
+    const rowData = node.data;
+    // Check if it's the specific column you want to customize
+    if (
+      params.column &&
+      params.column.getColId().toLowerCase().includes("ip")
+    ) {
+      return [
+        {
+          name: "Copy",
+          action: () => params.api.copySelectedRowsToClipboard(),
+        },
+        {
+          name: "Copy IP and Port",
+          action: () => {
+            const ip = params.value;
+            const port = rowData.port;
+            const textToCopy = port ? `${ip}:${port}` : ip;
+            navigator.clipboard.writeText(textToCopy);
+          },
+        },
+        {
+          name: "Search IP in Shodan",
+          action: () => {
+            window.open(`https://www.shodan.io/host/${params.value}`, "_blank");
+          },
+        },
+        {
+          name: "Search IP in Censys",
+          action: () => {
+            window.open(
+              `https://search.censys.io/hosts/${params.value}`,
+              "_blank"
+            );
+          },
+        },
+        {
+          name: `Search IP in Security Trails`,
+          action: () => {
+            window.open(
+              `https://securitytrails.com/list/ip/${params.value}`,
+              "_blank"
+            );
+          },
+        },
+      ];
+    }
+    // Return undefined for other columns to use default menu
+    return undefined;
   };
 
   return (
@@ -143,6 +195,7 @@ const GridComponent = () => {
           onGridReady={(params) => {
             setGridApi(params.api);
           }}
+          getContextMenuItems={getContextMenuItems}
         />
       </div>
     </div>
