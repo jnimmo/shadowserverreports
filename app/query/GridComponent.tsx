@@ -162,9 +162,22 @@ const GridComponent = () => {
       params.column.getColId().toLowerCase().includes("ip")
     ) {
       return [
+        "copy",
+        "separator",
         {
-          name: "Copy",
-          action: () => params.api.copySelectedRowsToClipboard(),
+          name: "Copy as curl",
+          action: () => {
+            const ip = params.value;
+            const host = ip && ip.includes(":") ? `[${ip}]` : ip;
+            const port = rowData.port;
+            const tags = rowData.tag;
+            const scheme =
+              tags && tags.includes("ssl") ? "https://" : "http://";
+            const textToCopy = port
+              ? `curl --include --insecure ${scheme}${host}:${port}`
+              : `curl --include --insecure ${scheme}${host}`;
+            navigator.clipboard.writeText(textToCopy);
+          },
         },
         {
           name: "Copy IP and Port",
