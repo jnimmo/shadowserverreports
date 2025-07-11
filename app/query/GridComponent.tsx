@@ -105,7 +105,7 @@ const GridComponent = () => {
   };
 
   const getContextMenuItems = (params: any) => {
-    const { node, column, value, api, columnApi } = params;
+    const { node } = params;
     const rowData = node.data;
     // Check if it's the specific column you want to customize
     if (
@@ -153,7 +153,7 @@ const GridComponent = () => {
       ];
     }
     // Return undefined for other columns to use default menu
-    return undefined;
+    return undefined as any;
   };
 
   return (
