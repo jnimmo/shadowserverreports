@@ -93,6 +93,12 @@ const GridComponent = () => {
   }, [reportId, searchParams]);
 
   useEffect(() => {
+    if (reportInfo) {
+      document.title = `Shadowserver Report - ${reportInfo.type} / ${reportInfo.timestamp}`;
+    }
+  }, [reportInfo]);
+
+  useEffect(() => {
     // if (gridApi && rowData.length > 0) {
     //   setTimeout(() => {
     //     gridApi.sizeColumnsToFit();
