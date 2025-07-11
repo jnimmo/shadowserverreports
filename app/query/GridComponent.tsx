@@ -10,6 +10,7 @@ import "ag-grid-enterprise";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
+import { Spinner } from "@/components/ui/spinner";
 import { Cross1Icon } from "@radix-ui/react-icons";
 import type { GridApi } from "ag-grid-community";
 
@@ -22,6 +23,7 @@ const GridComponent = () => {
     type: string;
     timestamp: string;
   } | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
   const searchParams = useSearchParams();
   const router = useRouter();
   const reportId = searchParams.get("reportId");
@@ -30,6 +32,7 @@ const GridComponent = () => {
 
   useEffect(() => {
     if (reportId) {
+      setIsLoading(true);
       // Fetch and display the report data
       fetch(`/api/reports/download?id=${reportId}`)
         .then((result) => result.json())
@@ -89,7 +92,10 @@ const GridComponent = () => {
             setReportInfo({ type, timestamp });
           }
         })
-        .catch((error) => console.error("Error loading report:", error));
+        .catch((error) => console.error("Error loading report:", error))
+        .finally(() => {
+          setIsLoading(false);
+        });
     }
   }, [reportId, searchParams]);
 
@@ -223,28 +229,34 @@ const GridComponent = () => {
         </div>
       )}
       <div style={{ width: "100%", height: "calc(100vh - 200px)" }}>
-        <AgGridReact
-          rowData={rowData}
-          columnDefs={columnDefs}
-          autoSizeStrategy={{
-            type: "fitCellContents",
-          }}
-          rowGroupPanelShow="always"
-          sideBar={false}
-          groupDisplayType="groupRows"
-          suppressAggFuncInHeader={true}
-          animateRows={true}
-          onGridReady={(params) => {
-            setGridApi(params.api);
-          }}
-          onColumnRowGroupChanged={(params) => {
-            const groupCols = params.api
-              .getRowGroupColumns()
-              .map((col: any) => col.getColId());
-            updateGroupingsInUrl(groupCols);
-          }}
-          getContextMenuItems={getContextMenuItems}
-        />
+        {isLoading ? (
+          <div className="flex justify-center items-center h-full">
+            <Spinner />
+          </div>
+        ) : (
+          <AgGridReact
+            rowData={rowData}
+            columnDefs={columnDefs}
+            autoSizeStrategy={{
+              type: "fitCellContents",
+            }}
+            rowGroupPanelShow="always"
+            sideBar={false}
+            groupDisplayType="groupRows"
+            suppressAggFuncInHeader={true}
+            animateRows={true}
+            onGridReady={(params) => {
+              setGridApi(params.api);
+            }}
+            onColumnRowGroupChanged={(params) => {
+              const groupCols = params.api
+                .getRowGroupColumns()
+                .map((col: any) => col.getColId());
+              updateGroupingsInUrl(groupCols);
+            }}
+            getContextMenuItems={getContextMenuItems}
+          />
+        )}
       </div>
     </div>
   );
