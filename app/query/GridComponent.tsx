@@ -16,7 +16,17 @@ import type { GridApi } from "ag-grid-community";
 
 ModuleRegistry.registerModules([AllEnterpriseModule]);
 
-const GridComponent = () => {
+interface GridComponentProps {
+  onScreenshotRequest?: (args: {
+    ip: string;
+    port?: string | number;
+    hostname?: string;
+    ssl: boolean;
+  }) => void;
+  onHostnameResolved?: (hostname: string, ip: string) => void;
+}
+
+const GridComponent = ({ onScreenshotRequest }: GridComponentProps) => {
   const [rowData, setRowData] = useState<object[]>([]);
   const [columnDefs, setColumnDefs] = useState<ColDef[]>([]);
   const [reportInfo, setReportInfo] = useState<{
@@ -29,6 +39,22 @@ const GridComponent = () => {
   const reportId = searchParams.get("reportId");
   const [gridApi, setGridApi] = useState<GridApi | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
+  const [resolvedHostnames, setResolvedHostnames] = useState<{
+    [hostname: string]: string;
+  }>({});
+  const [resolvingHostnames, setResolvingHostnames] = useState<{
+    [hostname: string]: boolean;
+  }>({});
+  const [screenshotLoading, setScreenshotLoading] = useState<{
+    [key: string]: boolean;
+  }>({});
+
+  // Expose a method to update resolved hostnames
+  useEffect(() => {
+    return () => {
+      // Cleanup if ref is removed
+    };
+  }, []);
 
   useEffect(() => {
     if (reportId) {
@@ -153,9 +179,54 @@ const GridComponent = () => {
     router.push("/");
   };
 
+  // Helper to resolve hostname via API
+  const resolveHostname = async (hostname: string) => {
+    if (
+      !hostname ||
+      resolvedHostnames[hostname] ||
+      resolvingHostnames[hostname]
+    )
+      return;
+    setResolvingHostnames((prev) => ({ ...prev, [hostname]: true }));
+    try {
+      const res = await fetch("/api/resolve-hostname", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ hostname }),
+      });
+      const data = await res.json();
+      setResolvedHostnames((prev) => ({
+        ...prev,
+        [hostname]: data.ip || null,
+      }));
+    } catch (e) {
+      setResolvedHostnames((prev) => ({ ...prev, [hostname]: null }));
+    } finally {
+      setResolvingHostnames((prev) => ({ ...prev, [hostname]: false }));
+    }
+  };
+
   const getContextMenuItems = (params: any) => {
     const { node } = params;
     const rowData = node.data;
+    // Hostname column context menu
+    if (
+      params.column &&
+      params.column.getColId().toLowerCase().includes("host")
+    ) {
+      const hostname = params.value;
+      return [
+        "copy",
+        "separator",
+        {
+          name: "Resolve Hostname (Cloudflare DoH)",
+          disabled: resolvingHostnames[hostname],
+          action: () => {
+            resolveHostname(hostname);
+          },
+        },
+      ];
+    }
     // Check if it's the specific column you want to customize
     if (
       params.column &&
@@ -189,6 +260,26 @@ const GridComponent = () => {
           },
         },
         {
+          name: screenshotLoading[rowData.ip]
+            ? "Preparing Screenshot..."
+            : "Capture Screenshot (via Cloudflare)",
+          disabled: screenshotLoading[rowData.ip],
+          action: async () => {
+            const ip = params.value;
+            const port = rowData.port;
+            const tags = rowData.tag;
+            const ssl = tags && tags.includes("ssl");
+            if (onScreenshotRequest) {
+              onScreenshotRequest({
+                ip,
+                port,
+                hostname: rowData.hostname,
+                ssl,
+              });
+            }
+          },
+        },
+        {
           name: "Search IP in Shodan",
           action: () => {
             window.open(`https://www.shodan.io/host/${params.value}`, "_blank");
@@ -217,6 +308,46 @@ const GridComponent = () => {
     // Return undefined for other columns to use default menu
     return undefined as any;
   };
+
+  // Patch columnDefs to add cellRenderer for Hostname
+  useEffect(() => {
+    if (!columnDefs.length) return;
+    const newDefs = columnDefs.map((col) => {
+      if (col.field && col.field.toLowerCase().includes("host")) {
+        return {
+          ...col,
+          cellRenderer: (params: any) => {
+            const hostname = params.value;
+            const resolved = resolvedHostnames[hostname];
+            const isResolving = resolvingHostnames[hostname];
+            return (
+              <span>
+                {hostname}
+                {isResolving && (
+                  <span style={{ marginLeft: 6, color: "#888" }}>
+                    (resolving...)
+                  </span>
+                )}
+                {resolved && (
+                  <span style={{ marginLeft: 6, color: "#0a0" }}>
+                    ({resolved})
+                  </span>
+                )}
+                {resolved === null && !isResolving && (
+                  <span style={{ marginLeft: 6, color: "#a00" }}>
+                    (unresolved)
+                  </span>
+                )}
+              </span>
+            );
+          },
+        };
+      }
+      return col;
+    });
+    setColumnDefs(newDefs);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resolvedHostnames, resolvingHostnames]);
 
   return (
     <div className="flex flex-col gap-4">
