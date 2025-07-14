@@ -3,8 +3,8 @@
 "use client";
 
 import { AgGridReact } from "ag-grid-react";
-import { useEffect, useState } from "react";
-import type { ColDef } from "ag-grid-community";
+import { useEffect, useState, useCallback, useRef, useMemo } from "react";
+import type { ColDef, RowSelectionOptions } from "ag-grid-community";
 import { AllEnterpriseModule, ModuleRegistry } from "ag-grid-enterprise";
 import "ag-grid-enterprise";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -16,7 +16,63 @@ import type { GridApi } from "ag-grid-community";
 
 ModuleRegistry.registerModules([AllEnterpriseModule]);
 
+// Success, Warning, Error icons (Radix UI or inline SVG)
+const SuccessIcon = () => (
+  <svg width="16" height="16" fill="none" viewBox="0 0 16 16">
+    <circle cx="8" cy="8" r="8" fill="#22c55e" />
+    <path
+      d="M5 8.5l2 2 4-4"
+      stroke="#fff"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </svg>
+);
+const WarningIcon = () => (
+  <svg width="16" height="16" fill="none" viewBox="0 0 16 16">
+    <circle cx="8" cy="8" r="8" fill="#f59e42" />
+    <path d="M8 5v3.5" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" />
+    <circle cx="8" cy="11" r="1" fill="#fff" />
+  </svg>
+);
+const ErrorIcon = () => (
+  <svg width="16" height="16" fill="none" viewBox="0 0 16 16">
+    <circle cx="8" cy="8" r="8" fill="#ef4444" />
+    <path
+      d="M5.5 5.5l5 5m0-5l-5 5"
+      stroke="#fff"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+    />
+  </svg>
+);
+
+// Helper to reorder fields so special fields are last
+function reorderFieldsWithSpecialLast(
+  fields: string[],
+  specialFields: string[]
+): string[] {
+  const lowerSpecial = specialFields.map((f) => f.toLowerCase());
+  const normalFields = fields.filter(
+    (f) => !lowerSpecial.includes(f.toLowerCase())
+  );
+  const specialOrdered = lowerSpecial
+    .map((f) => fields.find((orig) => orig.toLowerCase() === f))
+    .filter(Boolean) as string[];
+  return [...normalFields, ...specialOrdered];
+}
+
 const GridComponent = () => {
+  const rowSelection = useMemo<
+    RowSelectionOptions | "single" | "multiple"
+  >(() => {
+    return {
+      mode: "multiRow",
+      headerCheckbox: false,
+      copySelectedRows: true,
+    };
+  }, []);
   const [rowData, setRowData] = useState<object[]>([]);
   const [columnDefs, setColumnDefs] = useState<ColDef[]>([]);
   const [reportInfo, setReportInfo] = useState<{
@@ -29,6 +85,89 @@ const GridComponent = () => {
   const reportId = searchParams.get("reportId");
   const [gridApi, setGridApi] = useState<GridApi | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
+  const [dnsResolutions, setDnsResolutions] = useState<{
+    [rowKey: string]: {
+      status: "success" | "warning" | "error" | "pending";
+      resolvedIp?: string;
+    };
+  }>({});
+  const resolvingRowRef = useRef<string | null>(null);
+
+  // Helper to get a unique row key (assume hostname+ip is unique enough)
+  const getRowKey = (row: any) => `${row.hostname || ""}|${row.ip || ""}`;
+
+  const DNS_CACHE_TTL = 60 * 60 * 1000; // 1 hour in ms
+
+  const resolveDns = useCallback(async (row: any) => {
+    const rowKey = getRowKey(row);
+    setDnsResolutions((prev) => ({
+      ...prev,
+      [rowKey]: { status: "pending" },
+    }));
+    resolvingRowRef.current = rowKey;
+    const cacheKey = `dnsCache:${row.hostname}`;
+    try {
+      // Check localStorage cache
+      const cached = localStorage.getItem(cacheKey);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (parsed.timestamp && Date.now() - parsed.timestamp < DNS_CACHE_TTL) {
+          // Use cached result
+          setDnsResolutions((prev) => ({
+            ...prev,
+            [rowKey]: { status: parsed.status, resolvedIp: parsed.resolvedIp },
+          }));
+          resolvingRowRef.current = null;
+          return;
+        } else {
+          // Remove expired cache
+          localStorage.removeItem(cacheKey);
+        }
+      }
+      // Not cached or expired, fetch from API
+      const res = await fetch("/api/resolve-dns", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ hostname: row.hostname }),
+      });
+      const data = await res.json();
+      if (data.ip) {
+        // Compare with IP column
+        const status = data.ip === row.ip ? "success" : "warning";
+        setDnsResolutions((prev) => ({
+          ...prev,
+          [rowKey]: { status, resolvedIp: data.ip },
+        }));
+        // Cache result
+        localStorage.setItem(
+          cacheKey,
+          JSON.stringify({ status, resolvedIp: data.ip, timestamp: Date.now() })
+        );
+      } else {
+        setDnsResolutions((prev) => ({
+          ...prev,
+          [rowKey]: { status: "error" },
+        }));
+        // Cache error result
+        localStorage.setItem(
+          cacheKey,
+          JSON.stringify({ status: "error", timestamp: Date.now() })
+        );
+      }
+    } catch (e) {
+      setDnsResolutions((prev) => ({
+        ...prev,
+        [rowKey]: { status: "error" },
+      }));
+      // Cache error result
+      localStorage.setItem(
+        cacheKey,
+        JSON.stringify({ status: "error", timestamp: Date.now() })
+      );
+    } finally {
+      resolvingRowRef.current = null;
+    }
+  }, []);
 
   useEffect(() => {
     if (reportId) {
@@ -50,7 +189,13 @@ const GridComponent = () => {
             });
             const tagsArray = Array.from(tagSet);
             // Dynamically create column definitions from the first row
-            const cols = Object.keys(data[0]).map((field) => {
+            const specialFields = ["geo", "region", "city", "naics", "sector"];
+            const allFields = Object.keys(data[0]);
+            const orderedFields = reorderFieldsWithSpecialLast(
+              allFields,
+              specialFields
+            );
+            const cols = orderedFields.map((field) => {
               const colDef: ColDef = {
                 field,
                 sortable: true,
@@ -149,6 +294,36 @@ const GridComponent = () => {
     // }
   }, [gridApi, rowData]);
 
+  // Pre-populate dnsResolutions from localStorage on rowData change
+  useEffect(() => {
+    if (rowData && rowData.length > 0) {
+      const newDnsResolutions: typeof dnsResolutions = {};
+      rowData.forEach((row: any) => {
+        const rowKey = getRowKey(row);
+        const cacheKey = `dnsCache:${row.hostname}`;
+        const cached = localStorage.getItem(cacheKey);
+        if (cached) {
+          try {
+            const parsed = JSON.parse(cached);
+            if (
+              parsed.timestamp &&
+              Date.now() - parsed.timestamp < DNS_CACHE_TTL
+            ) {
+              newDnsResolutions[rowKey] = {
+                status: parsed.status,
+                resolvedIp: parsed.resolvedIp,
+              };
+            }
+          } catch {}
+        }
+      });
+      if (Object.keys(newDnsResolutions).length > 0) {
+        setDnsResolutions((prev) => ({ ...prev, ...newDnsResolutions }));
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rowData]);
+
   const handleClose = () => {
     router.push("/");
   };
@@ -156,6 +331,51 @@ const GridComponent = () => {
   const getContextMenuItems = (params: any) => {
     const { node } = params;
     const rowData = node.data;
+    // Hostname column context menu
+    if (
+      params.column &&
+      params.column.getColId().toLowerCase() === "hostname"
+    ) {
+      return [
+        "copy",
+        {
+          name: "Copy as curl",
+          action: () => {
+            const port = rowData.port;
+            const tags = rowData.tag;
+            const scheme =
+              tags && tags.includes("ssl") ? "https://" : "http://";
+            const textToCopy = port
+              ? `curl --include --insecure ${scheme}${params.value}:${port}`
+              : `curl --include --insecure ${scheme}${params.value}`;
+            navigator.clipboard.writeText(textToCopy);
+          },
+        },
+        {
+          name: "Copy endpoint",
+          action: () => {
+            const ip = params.value;
+            const port = rowData.port;
+            const textToCopy = port ? `${ip}:${port}` : ip;
+            navigator.clipboard.writeText(textToCopy);
+          },
+        },
+        "separator",
+        {
+          name: "Resolve DNS hostname",
+          action: () => resolveDns(rowData),
+        },
+        {
+          name: "Search domain in Shodan",
+          action: () => {
+            window.open(
+              `https://www.shodan.io/domain/${params.value}`,
+              "_blank"
+            );
+          },
+        },
+      ];
+    }
     // Check if it's the specific column you want to customize
     if (
       params.column &&
@@ -163,7 +383,6 @@ const GridComponent = () => {
     ) {
       return [
         "copy",
-        "separator",
         {
           name: "Copy as curl",
           action: () => {
@@ -180,7 +399,7 @@ const GridComponent = () => {
           },
         },
         {
-          name: "Copy IP and Port",
+          name: "Copy endpoint",
           action: () => {
             const ip = params.value;
             const port = rowData.port;
@@ -188,6 +407,7 @@ const GridComponent = () => {
             navigator.clipboard.writeText(textToCopy);
           },
         },
+        "separator",
         {
           name: "Search IP in Shodan",
           action: () => {
@@ -217,6 +437,45 @@ const GridComponent = () => {
     // Return undefined for other columns to use default menu
     return undefined as any;
   };
+
+  // Add cellRenderer for hostname column to show resolved IP and status icon
+  useEffect(() => {
+    if (columnDefs.length > 0) {
+      setColumnDefs((prev) =>
+        prev.map((col) => {
+          if (col.field && col.field.toLowerCase() === "hostname") {
+            return {
+              ...col,
+              cellRenderer: (params: any) => {
+                const rowKey = getRowKey(params.data);
+                const dns = dnsResolutions[rowKey];
+                return (
+                  <span
+                    style={{ display: "flex", alignItems: "center", gap: 4 }}
+                  >
+                    {params.value}
+                    {dns?.status === "pending" && <Spinner size="small" />}
+                    {dns?.status === "success" && <SuccessIcon />}
+                    {dns?.status === "warning" && (
+                      <>
+                        <WarningIcon />
+                        <span style={{ fontSize: "0.8em", color: "#f59e42" }}>
+                          {dns.resolvedIp}
+                        </span>
+                      </>
+                    )}
+                    {dns?.status === "error" && <ErrorIcon />}
+                  </span>
+                );
+              },
+            };
+          }
+          return col;
+        })
+      );
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dnsResolutions]);
 
   return (
     <div className="flex flex-col gap-4">
@@ -259,6 +518,7 @@ const GridComponent = () => {
             groupDisplayType="groupRows"
             suppressAggFuncInHeader={true}
             animateRows={true}
+            rowSelection={rowSelection}
             onGridReady={(params) => {
               setGridApi(params.api);
             }}
