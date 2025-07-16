@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextResponse } from "next/server";
 
 export async function POST(request: Request) {
@@ -43,6 +44,7 @@ export async function POST(request: Request) {
       );
     }
   } catch (error) {
+    console.log(error);
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
 }
