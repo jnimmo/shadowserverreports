@@ -30,7 +30,17 @@ export async function GET(req: NextRequest) {
       );
     }
     const data = await res.json();
-    return NextResponse.json({ name: data?.result?.asn?.aka || "" });
+    return NextResponse.json(
+      { name: data?.result?.asn?.aka || "" },
+      {
+        status: 200,
+        headers: {
+          "Cache-Control": "public, s-maxage=604800",
+          "CDN-Cache-Control": "public, s-maxage=604800",
+          "Vercel-CDN-Cache-Control": "public, s-maxage=604800",
+        },
+      }
+    );
   } catch (e) {
     console.log(e);
     return NextResponse.json({ error: "Server error" }, { status: 500 });

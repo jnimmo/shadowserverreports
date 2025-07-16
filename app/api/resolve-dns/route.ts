@@ -36,7 +36,17 @@ export async function POST(request: Request) {
       }
     }
     if (ip) {
-      return NextResponse.json({ ip });
+      return NextResponse.json(
+        { ip },
+        {
+          status: 200,
+          headers: {
+            "Cache-Control": "public, s-maxage=3600",
+            "CDN-Cache-Control": "public, s-maxage=3600",
+            "Vercel-CDN-Cache-Control": "public, s-maxage=3600",
+          },
+        }
+      );
     } else {
       return NextResponse.json(
         { error: "Could not resolve hostname" },
