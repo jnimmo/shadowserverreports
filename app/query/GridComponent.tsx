@@ -88,6 +88,13 @@ interface DnsResolution {
 }
 type DnsResolutions = Record<string, DnsResolution>;
 
+function ipToNumber(ip: string): number {
+  if (!ip) return 0;
+  return ip
+    .split(".")
+    .reduce((acc, octet) => (acc << 8) + parseInt(octet, 10), 0);
+}
+
 const GridComponent = () => {
   const rowSelection = useMemo<
     RowSelectionOptions | "single" | "multiple"
@@ -126,7 +133,7 @@ const GridComponent = () => {
 
   // Helper to get a unique row key (assume hostname+ip is unique enough)
   const getRowKey = useCallback(
-    (row: ReportRow) => `${row.hostname || ""}|${row.ip || ""}`,
+    (row: ReportRow) => row.originalIndex?.toString(),
     []
   );
 
@@ -272,12 +279,34 @@ const GridComponent = () => {
         colDef.filter = "agDateColumnFilter";
         colDef.sort = "desc";
       } else if (
-        ["port", "src_port", "dst_port", "naics", "asn"].includes(
-          field.toLowerCase()
-        )
+        ["port", "src_port", "dst_port", "naics"].includes(field.toLowerCase())
       ) {
         colDef.type = "numericColumn";
         colDef.filter = "agNumberColumnFilter";
+        colDef.comparator = (valueA: any, valueB: any) => {
+          const numA = Number(valueA) || 0;
+          const numB = Number(valueB) || 0;
+          return numA - numB; // Ascending: 80 < 8000
+        };
+      } else if (field.toLowerCase() == "severity") {
+        const severityOrder: Record<string, number> = {
+          critical: 4,
+          high: 3,
+          medium: 2,
+          low: 1,
+          info: 0,
+        };
+        colDef.comparator = (valueA: string, valueB: string, nodeA, nodeB) => {
+          const orderA = severityOrder[(valueA || "").toLowerCase()] ?? 0;
+          const orderB = severityOrder[(valueB || "").toLowerCase()] ?? 0;
+          if (orderB !== orderA) {
+            return orderB - orderA; // Descending: critical > high > medium > low
+          }
+          // Tiebreaker: originalIndex ascending
+          const idxA = nodeA?.data?.originalIndex ?? 0;
+          const idxB = nodeB?.data?.originalIndex ?? 0;
+          return idxA - idxB;
+        };
       } else if (field.toLowerCase() === "tag") {
         colDef.valueGetter = (params: ValueGetterParams) => {
           const data = params.data as ReportRow | undefined;
@@ -302,6 +331,13 @@ const GridComponent = () => {
           return asnNames[asn] ? `${asnNames[asn]}` : asn;
         };
       }
+      if (field.toLowerCase() === "ip") {
+        colDef.comparator = (valueA: string, valueB: string, nodeA, nodeB) => {
+          const numA = nodeA?.data?.ipNumeric ?? 0;
+          const numB = nodeB?.data?.ipNumeric ?? 0;
+          return numA - numB;
+        };
+      }
       return colDef;
     });
   }, [rowData, tagsArray, hostnameCellRenderer, asnNames]);
@@ -320,7 +356,12 @@ const GridComponent = () => {
       fetch(`/api/reports/download?id=${reportId}`)
         .then((result) => result.json())
         .then((data) => {
-          setRowData(data || []);
+          const indexedData = (data || []).map((row: any, idx: number) => ({
+            ...row,
+            originalIndex: idx,
+            ipNumeric: ipToNumber(row.ip),
+          }));
+          setRowData(indexedData);
           // Get report info from the URL parameters
           const type = searchParams.get("type") || "Unknown Report";
           const timestamp = searchParams.get("timestamp") || "";
@@ -609,6 +650,7 @@ const GridComponent = () => {
           <AgGridReact
             rowData={rowData}
             columnDefs={columnDefs}
+            suppressMaintainUnsortedOrder={false}
             autoSizeStrategy={{
               type: "fitCellContents",
             }}
@@ -629,6 +671,7 @@ const GridComponent = () => {
               updateGroupingsInUrl(groupCols);
             }}
             getContextMenuItems={getContextMenuItems}
+            getRowId={(params) => params.data.originalIndex?.toString()}
           />
         )}
       </div>
