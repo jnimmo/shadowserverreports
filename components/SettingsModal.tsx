@@ -17,11 +17,21 @@ import { setApiConfig } from "../app/actions/api-key";
 export function SettingsModal() {
   const [apiKey, setApiKeyState] = useState("");
   const [apiSecret, setApiSecretState] = useState("");
+  // Default Geo filter state
+  const [defaultGeo, setDefaultGeo] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("default-geo") || "NZ";
+    }
+    return "NZ";
+  });
 
   const handleSave = async () => {
     await setApiConfig(apiKey, apiSecret);
     setApiKeyState("");
     setApiSecretState("");
+    if (typeof window !== "undefined") {
+      localStorage.setItem("default-geo", defaultGeo || "NZ");
+    }
     window.location.reload();
   };
 
@@ -29,8 +39,8 @@ export function SettingsModal() {
     <Dialog>
       <DialogTrigger asChild>
         <Button variant="outline">
-          <GearIcon className="h-4 w-4 md:mr-2 md:h-5 md:w-5 md:hidden" />
-          <span className="hidden md:inline">Settings</span>
+          <GearIcon />
+          Settings
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
@@ -62,6 +72,18 @@ export function SettingsModal() {
               value={apiSecret}
               onChange={(e) => setApiSecretState(e.target.value)}
               className="col-span-3"
+            />
+          </div>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="default-geo" className="text-right">
+              Default Geo Filter
+            </Label>
+            <Input
+              id="default-geo"
+              value={defaultGeo}
+              onChange={(e) => setDefaultGeo(e.target.value)}
+              className="col-span-3"
+              placeholder="e.g. NZ"
             />
           </div>
         </div>

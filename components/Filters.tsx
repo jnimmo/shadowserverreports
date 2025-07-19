@@ -12,6 +12,10 @@ import {
 import { ReportTypes } from "./ReportTypes";
 import { useDebouncedCallback } from "use-debounce";
 import { SettingsModal } from "./SettingsModal";
+import { Input } from "./ui/input";
+import { useRef } from "react";
+import { MagnifyingGlassIcon } from "@radix-ui/react-icons";
+import { buildIpQueryUrl } from "@/lib/utils";
 
 export function Filters({
   filters,
@@ -53,6 +57,8 @@ export function Filters({
 
   // Local state for immediate UI updates
   const [localFilters, setLocalFilters] = useState(filters);
+  const [ipSearch, setIpSearch] = useState("");
+  const ipInputRef = useRef<HTMLInputElement>(null);
 
   // Debounced callback for updating global state
   const debouncedSetFilters = useDebouncedCallback(
@@ -102,8 +108,20 @@ export function Filters({
     router.push(`${pathname}${queryString ? `?${queryString}` : ""}`);
   };
 
+  // Handler for IP search
+  const handleIpSearch = () => {
+    if (!ipSearch.trim()) return;
+    // Use date range and geo from filters
+    const from = localFilters.dateRange?.from;
+    const to = localFilters.dateRange?.to;
+    const geo = localFilters.geo;
+    const url = buildIpQueryUrl(ipSearch, { from, to }, geo);
+    router.push(url);
+  };
+
   return (
     <div className="flex flex-wrap gap-4 w-full">
+      {/* Main filters */}
       <Select
         value={localFilters.reportType}
         required={false}
@@ -111,7 +129,7 @@ export function Filters({
           handleFilterChange({ reportType: value });
         }}
       >
-        <SelectTrigger className="w-1/4">
+        <SelectTrigger className="w-1/5">
           <SelectValue placeholder="Select report type" />
         </SelectTrigger>
         {isAuthenticated && <ReportTypes />}
@@ -133,7 +151,7 @@ export function Filters({
           );
         }}
       >
-        <SelectTrigger className="w-1/6">
+        <SelectTrigger className="w-1/8">
           <SelectValue placeholder="Severity" />
         </SelectTrigger>
         <SelectContent>
@@ -144,7 +162,29 @@ export function Filters({
           <SelectItem value="critical">Critical</SelectItem>
         </SelectContent>
       </Select>
+      <div className="flex items-center gap-2">
+        <div className="relative">
+          <MagnifyingGlassIcon
+            className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500"
+            onClick={handleIpSearch}
+          />
+          <Input
+            id="ip-search"
+            ref={ipInputRef}
+            type="text"
+            placeholder="IP search"
+            aria-label="IP search e.g. 1.2.3.0/24"
+            value={ipSearch}
+            onChange={(e) => setIpSearch(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") handleIpSearch();
+            }}
+            className="w-40 pl-8"
+          />
+        </div>
+      </div>
       <SettingsModal />
+      {/* IP Search - visually separated */}
     </div>
   );
 }

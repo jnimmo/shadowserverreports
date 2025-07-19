@@ -3,7 +3,7 @@
 "use client";
 
 import { AgGridReact } from "ag-grid-react";
-import { useEffect, useState, useCallback, useRef, useMemo } from "react";
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import type {
   ColDef,
   RowSelectionOptions,
@@ -22,6 +22,7 @@ import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { Spinner } from "@/components/ui/spinner";
 import { Cross1Icon } from "@radix-ui/react-icons";
 import type { GridApi } from "ag-grid-community";
+import { buildIpQueryUrl } from "@/lib/utils";
 
 ModuleRegistry.registerModules([AllEnterpriseModule]);
 
@@ -57,27 +58,12 @@ const ErrorIcon = () => (
   </svg>
 );
 
-// Helper to reorder fields so special fields are last
-function reorderFieldsWithSpecialLast(
-  fields: string[],
-  specialFields: string[]
-): string[] {
-  const lowerSpecial = specialFields.map((f) => f.toLowerCase());
-  const normalFields = fields.filter(
-    (f) => !lowerSpecial.includes(f.toLowerCase())
-  );
-  const specialOrdered = lowerSpecial
-    .map((f) => fields.find((orig) => orig.toLowerCase() === f))
-    .filter(Boolean) as string[];
-  return [...normalFields, ...specialOrdered];
-}
-
 // Types for row data and DNS resolution state
 interface ReportRow {
   hostname?: string;
   ip?: string;
   port?: number;
-  tag?: string;
+  tag?: string | string[];
   asn?: string | number;
   [key: string]: any;
 }
@@ -94,6 +80,37 @@ function ipToNumber(ip: string): number {
     .split(".")
     .reduce((acc, octet) => (acc << 8) + parseInt(octet, 10), 0);
 }
+
+const LoadingOverlay = (props: any) => {
+  return (
+    <div className="flex items-center justify-center h-full">
+      <div className="flex items-center gap-2">
+        <Spinner />
+        <span>{props.loadingMessage}</span>
+      </div>
+    </div>
+  );
+};
+
+const NoRowsOverlay = (props: any) => {
+  return (
+    <div className="flex items-center justify-center h-full text-gray-500">
+      <div className="flex flex-col items-center gap-2">
+        <Cross1Icon className="h-8 w-8" />
+        <span>
+          {props.error
+            ? `Error: ${props.error}`
+            : "No data found for the selected date range"}
+        </span>
+        {props.error && (
+          <Button size="sm" onClick={props.onRetry}>
+            Retry
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+};
 
 const GridComponent = () => {
   const rowSelection = useMemo<
@@ -116,20 +133,55 @@ const GridComponent = () => {
       ],
     };
   }, []);
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+
+  // Parse initial parameters
+  const initialIp = searchParams.get("ip") || undefined;
+  const geoSetting =
+    typeof window !== "undefined"
+      ? localStorage.getItem("default-geo")
+      : undefined;
+  const initialReportId = searchParams.get("reportId") || undefined;
+  const initialType = searchParams.get("type") || undefined;
+  const initialTimestamp = searchParams.get("timestamp") || undefined;
+  const initialGroup = searchParams.get("group") || undefined;
+
+  // Parse date parameters with fallback support
+  const initialDateRange = (() => {
+    const dateParam = searchParams.get("date");
+    if (dateParam) {
+      const [from, to] = dateParam.split(":");
+      return { from, to: to || from };
+    }
+    const from = searchParams.get("from");
+    const to = searchParams.get("to");
+    if (from && to) {
+      return { from, to };
+    }
+    return null;
+  })();
+
+  // Initialize state
+  const [ip] = useState(initialIp);
+  const [reportId] = useState(initialReportId);
+  const [type] = useState(initialType);
+  const [dateRange, setDateRange] = useState(initialDateRange);
+  const [initialGroupCols] = useState(
+    initialGroup ? initialGroup.split(",").filter(Boolean) : []
+  );
+  const initialFilterSet = useRef(false);
+
   const [rowData, setRowData] = useState<ReportRow[]>([]);
   const [reportInfo, setReportInfo] = useState<{
     type: string;
     timestamp: string;
   } | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const searchParams = useSearchParams();
-  const router = useRouter();
-  const pathname = usePathname();
-  const reportId = searchParams.get("reportId");
   const [gridApi, setGridApi] = useState<GridApi | null>(null);
   const [dnsResolutions, setDnsResolutions] = useState<DnsResolutions>({});
-  const initialGroupingApplied = useRef(false);
   const [asnNames, setAsnNames] = useState<{ [asn: string]: string }>({});
+  const [loading, setLoading] = useState(false);
 
   // Helper to get a unique row key (assume hostname+ip is unique enough)
   const getRowKey = useCallback(
@@ -222,16 +274,18 @@ const GridComponent = () => {
 
   // Extract tags array from rowData
   const tagsArray = useMemo(() => {
-    const tagSet = new Set<string>();
-    rowData.forEach((row) => {
-      if (row.tag) {
-        row.tag.split(";").forEach((tag: string) => {
-          const trimmed = tag.trim();
-          if (trimmed) tagSet.add(trimmed);
-        });
-      }
-    });
-    return Array.from(tagSet);
+    return Array.from(
+      new Set(
+        rowData
+          .flatMap((row) => {
+            if (Array.isArray(row.tag)) return row.tag;
+            if (typeof row.tag === "string") return row.tag.split(";");
+            return [];
+          })
+          .map((tag) => tag.trim())
+          .filter(Boolean)
+      )
+    );
   }, [rowData]);
 
   // Memoize hostnameCellRenderer
@@ -259,26 +313,40 @@ const GridComponent = () => {
     [dnsResolutions, getRowKey]
   );
 
-  // Memoize columnDefs based on rowData, tagsArray, and hostnameCellRenderer
-  const columnDefs = useMemo(() => {
-    if (!rowData.length) return [];
-    const specialFields = ["geo", "region", "city", "naics", "sector"];
-    const allFields = Object.keys(rowData[0]);
-    const orderedFields = reorderFieldsWithSpecialLast(
-      allFields,
-      specialFields
-    );
-    return orderedFields.map((field) => {
+  const getTimestampColumn = useCallback(
+    (): ColDef => ({
+      field: "timestamp",
+      headerName: "Timestamp",
+      filter: "agDateColumnFilter",
+      sort: "desc",
+      filterParams: {
+        inRangeInclusive: true,
+        includeBlanks: false,
+        browserDatePicker: true,
+        defaultOption: "inRange",
+        defaultJoinOperator: "AND",
+        defaultValue: initialDateRange
+          ? {
+              type: "inRange",
+              dateFrom: initialDateRange.from,
+              dateTo: initialDateRange.to,
+            }
+          : undefined,
+      },
+    }),
+    [initialDateRange]
+  );
+
+  const createColumnDef = useCallback(
+    (field: string): ColDef => {
       const colDef: ColDef = {
         field,
         sortable: true,
         filter: true,
         enableRowGroup: true,
       };
-      if (["timestamp", "http_date"].includes(field.toLowerCase())) {
-        colDef.filter = "agDateColumnFilter";
-        colDef.sort = "desc";
-      } else if (
+
+      if (
         ["port", "src_port", "dst_port", "naics"].includes(field.toLowerCase())
       ) {
         colDef.type = "numericColumn";
@@ -286,9 +354,9 @@ const GridComponent = () => {
         colDef.comparator = (valueA: any, valueB: any) => {
           const numA = Number(valueA) || 0;
           const numB = Number(valueB) || 0;
-          return numA - numB; // Ascending: 80 < 8000
+          return numA - numB;
         };
-      } else if (field.toLowerCase() == "severity") {
+      } else if (field.toLowerCase() === "severity") {
         const severityOrder: Record<string, number> = {
           critical: 4,
           high: 3,
@@ -300,9 +368,8 @@ const GridComponent = () => {
           const orderA = severityOrder[(valueA || "").toLowerCase()] ?? 0;
           const orderB = severityOrder[(valueB || "").toLowerCase()] ?? 0;
           if (orderB !== orderA) {
-            return orderB - orderA; // Descending: critical > high > medium > low
+            return orderB - orderA;
           }
-          // Tiebreaker: originalIndex ascending
           const idxA = nodeA?.data?.originalIndex ?? 0;
           const idxB = nodeB?.data?.originalIndex ?? 0;
           return idxA - idxB;
@@ -311,27 +378,30 @@ const GridComponent = () => {
         colDef.valueGetter = (params: ValueGetterParams) => {
           const data = params.data as ReportRow | undefined;
           if (!data || !data.tag) return [];
-          return data.tag
-            .split(";")
-            .map((tag: string) => tag.trim())
-            .filter((tag: string) => tag);
+          if (Array.isArray(data.tag)) {
+            return data.tag.map((tag: string) => tag.trim()).filter(Boolean);
+          }
+          if (typeof data.tag === "string") {
+            return data.tag
+              .split(";")
+              .map((tag: string) => tag.trim())
+              .filter(Boolean);
+          }
+          return [];
         };
         colDef.filterParams = {
           values: tagsArray,
           valueFormatter: (params: ValueFormatterParams) => params.value,
         };
-      }
-      if (field.toLowerCase() === "hostname") {
+      } else if (field.toLowerCase() === "hostname") {
         colDef.cellRenderer = hostnameCellRenderer;
-      }
-      if (field.toLowerCase() === "asn") {
+      } else if (field.toLowerCase() === "asn") {
         colDef.valueFormatter = (params: ValueFormatterParams) => {
           const asn = params.value;
           if (!asn) return "";
           return asnNames[asn] ? `${asnNames[asn]}` : asn;
         };
-      }
-      if (field.toLowerCase() === "ip") {
+      } else if (field.toLowerCase() === "ip") {
         colDef.comparator = (valueA: string, valueB: string, nodeA, nodeB) => {
           const numA = nodeA?.data?.ipNumeric ?? 0;
           const numB = nodeB?.data?.ipNumeric ?? 0;
@@ -339,151 +409,96 @@ const GridComponent = () => {
         };
       }
       return colDef;
-    });
-  }, [rowData, tagsArray, hostnameCellRenderer, asnNames]);
+    },
+    [tagsArray, hostnameCellRenderer, asnNames]
+  );
 
-  // When dnsResolutions changes, refresh the grid cells
-  useEffect(() => {
-    if (gridApi) {
-      gridApi.refreshCells({ columns: ["hostname"] });
-    }
-  }, [dnsResolutions, gridApi]);
+  const getOrderedFields = useCallback((fields: string[]) => {
+    const specialFields = ["geo", "region", "city", "naics", "sector"];
+    const lowerSpecial = specialFields.map((f) => f.toLowerCase());
 
-  // Fetch and display the report data
-  useEffect(() => {
-    if (reportId) {
-      setIsLoading(true);
-      fetch(`/api/reports/download?id=${reportId}`)
-        .then((result) => result.json())
-        .then((data) => {
-          const indexedData = (data || []).map((row: any, idx: number) => ({
-            ...row,
-            originalIndex: idx,
-            ipNumeric: ipToNumber(row.ip),
-          }));
-          setRowData(indexedData);
-          // Get report info from the URL parameters
-          const type = searchParams.get("type") || "Unknown Report";
-          const timestamp = searchParams.get("timestamp") || "";
-          setReportInfo({ type, timestamp });
-        })
-        .catch((error) => console.error("Error loading report:", error))
-        .finally(() => {
-          setIsLoading(false);
-        });
-    }
-  }, []);
+    // Get timestamp field if present
+    const timestampField = fields.find((f) => f.toLowerCase() === "timestamp");
 
-  // Set document title when reportInfo changes
-  useEffect(() => {
-    if (reportInfo) {
-      document.title = `Shadowserver Report - ${reportInfo.type} / ${reportInfo.timestamp}`;
-    }
-  }, [reportInfo]);
-
-  // Reset the flag when the report changes
-  useEffect(() => {
-    initialGroupingApplied.current = false;
-  }, [reportId]);
-
-  // Apply grouping from URL only once per report
-  useEffect(() => {
-    if (gridApi && columnDefs.length > 0 && !initialGroupingApplied.current) {
-      const groupCols = searchParams.get("group");
-      if (groupCols) {
-        try {
-          const columns = groupCols.split(",").filter(Boolean);
-          const validColumns = columns.filter((colId) =>
-            columnDefs.some((colDef) => colDef.field === colId)
-          );
-          gridApi.setRowGroupColumns(validColumns);
-        } catch (error) {
-          console.error("Error applying groupings:", error);
-        }
-      }
-      initialGroupingApplied.current = true;
-    }
-  }, [gridApi, columnDefs, reportId, searchParams]);
-
-  // On user grouping, update the URL (already handled in your onColumnRowGroupChanged)
-  // No further code needed here
-
-  // Pre-populate dnsResolutions from localStorage on rowData change
-  useEffect(() => {
-    if (rowData && rowData.length > 0) {
-      const newDnsResolutions: DnsResolutions = {};
-      rowData.forEach((row) => {
-        const rowKey = getRowKey(row);
-        const cacheKey = `dnsCache:${row.hostname}`;
-        const cached = localStorage.getItem(cacheKey);
-        if (cached) {
-          try {
-            const parsed = JSON.parse(cached);
-            if (
-              parsed.timestamp &&
-              Date.now() - parsed.timestamp < DNS_CACHE_TTL
-            ) {
-              newDnsResolutions[rowKey] = {
-                status: parsed.status,
-                resolvedIp: parsed.resolvedIp,
-              };
-            }
-          } catch {}
-        }
-      });
-      if (Object.keys(newDnsResolutions).length > 0) {
-        setDnsResolutions((prev) => ({ ...prev, ...newDnsResolutions }));
-      }
-    }
-  }, [rowData, getRowKey, DNS_CACHE_TTL]);
-
-  // On data load, fetch ASN names using cache
-  useEffect(() => {
-    if (rowData.length === 0) return;
-
-    const uniqueAsns = Array.from(
-      new Set(rowData.map((row) => String(row.asn)).filter(Boolean))
+    // Get normal fields (excluding special fields and timestamp)
+    const normalFields = fields.filter(
+      (f) =>
+        !lowerSpecial.includes(f.toLowerCase()) &&
+        f.toLowerCase() !== "timestamp"
     );
 
-    const newNamesFromCache: { [key: string]: string } = {};
-    const asnsToFetchFromApi: string[] = [];
+    // Get special fields in order
+    const orderedSpecialFields = lowerSpecial
+      .map((f) => fields.find((orig) => orig.toLowerCase() === f))
+      .filter(Boolean) as string[];
 
-    for (const asn of uniqueAsns) {
-      if (asnNames[asn] !== undefined) {
-        continue;
+    return {
+      timestampField,
+      normalFields,
+      specialFields: orderedSpecialFields,
+    };
+  }, []);
+
+  const columnDefs = useMemo(() => {
+    if (ip) {
+      // For IP queries, always start with timestamp column
+      const columns = [getTimestampColumn()];
+
+      if (!rowData.length) {
+        return columns;
       }
-      const cachedName = localStorage.getItem(`asnName:${asn}`);
-      if (cachedName !== null) {
-        newNamesFromCache[asn] = cachedName;
-      } else {
-        asnsToFetchFromApi.push(asn);
+
+      // Add remaining columns if we have data
+      const { normalFields, specialFields } = getOrderedFields(
+        Object.keys(rowData[0])
+      );
+      return [
+        ...columns,
+        ...normalFields.map(createColumnDef),
+        ...specialFields.map(createColumnDef),
+      ];
+    }
+
+    // For report views
+    if (!rowData.length) return [];
+
+    const { timestampField, normalFields, specialFields } = getOrderedFields(
+      Object.keys(rowData[0])
+    );
+
+    return [
+      // Put timestamp first if present
+      ...(timestampField ? [createColumnDef(timestampField)] : []),
+      ...normalFields.map(createColumnDef),
+      ...specialFields.map(createColumnDef),
+    ];
+  }, [ip, rowData, getTimestampColumn, createColumnDef, getOrderedFields]);
+
+  const handleDateFilterChange = useCallback(() => {
+    if (!gridApi || initialFilterSet.current) {
+      initialFilterSet.current = false;
+      return;
+    }
+    const filterModel = gridApi.getFilterModel();
+    const timestampFilter = filterModel["timestamp"];
+    // Remove the ip check since we want filter changes to work even without data
+    if (timestampFilter && timestampFilter.type === "inRange") {
+      const from = timestampFilter.dateFrom?.split("T")[0];
+      const to = timestampFilter.dateTo?.split("T")[0];
+      if (
+        from &&
+        to &&
+        /^\d{4}-\d{2}-\d{2}$/.test(from) &&
+        /^\d{4}-\d{2}-\d{2}$/.test(to) &&
+        !isNaN(Date.parse(from)) &&
+        !isNaN(Date.parse(to)) &&
+        (dateRange?.from !== from || dateRange?.to !== to)
+      ) {
+        setLoading(true);
+        setDateRange({ from, to });
       }
     }
-
-    if (Object.keys(newNamesFromCache).length > 0) {
-      setAsnNames((prev) => ({ ...prev, ...newNamesFromCache }));
-    }
-
-    if (asnsToFetchFromApi.length > 0) {
-      Promise.all(
-        asnsToFetchFromApi.map((asn) =>
-          fetch(`/api/asn-info?asn=${asn}`)
-            .then((res) => res.json())
-            .then((data) => {
-              const name = data?.name || "";
-              localStorage.setItem(`asnName:${asn}`, name);
-              return [asn, name] as [string, string];
-            })
-            .catch(() => [asn, ""] as [string, string])
-        )
-      ).then((results) => {
-        setAsnNames((prev) => ({
-          ...prev,
-          ...Object.fromEntries(results),
-        }));
-      });
-    }
-  }, [rowData, asnNames]);
+  }, [gridApi, dateRange]);
 
   const handleClose = () => {
     router.push("/");
@@ -570,6 +585,17 @@ const GridComponent = () => {
               navigator.clipboard.writeText(textToCopy);
             },
           },
+          {
+            name: "Shadowserver IP Query",
+            action: () => {
+              // If viewing a report, use its timestamp, otherwise use current dateRange
+              const queryDateRange = initialTimestamp
+                ? { from: initialTimestamp, to: initialTimestamp }
+                : dateRange;
+              const url = buildIpQueryUrl(params.value, queryDateRange);
+              window.open(url, "_blank");
+            },
+          },
           "separator",
           {
             name: "Search IP in Shodan",
@@ -603,10 +629,10 @@ const GridComponent = () => {
       // Return empty array for other columns to use default menu
       return ["copy", "separator", "export"];
     },
-    [resolveDns]
+    [resolveDns, dateRange, initialTimestamp]
   );
 
-  // Update URL when groupings change
+  // In the grouping update handler (onColumnRowGroupChanged), update the URL for shareability
   const updateGroupingsInUrl = (groupCols: string[]) => {
     const url = new URL(window.location.href);
     if (groupCols.length > 0) {
@@ -614,66 +640,266 @@ const GridComponent = () => {
     } else {
       url.searchParams.delete("group");
     }
-    router.replace(pathname + url.search, { scroll: false });
+    router.replace(url.pathname + url.search, { scroll: false });
   };
+
+  // Fetch and display the report data (only on initial load or when component state changes)
+  useEffect(() => {
+    if (ip) {
+      setLoading(true);
+      const url = buildIpQueryUrl(
+        ip,
+        dateRange,
+        geoSetting || undefined,
+        "/api/reports/query"
+      );
+      fetch(url)
+        .then((result) => result.json())
+        .then((data) => {
+          const indexedData = (data || []).map((row: any, idx: number) => ({
+            ...row,
+            originalIndex: idx,
+            ipNumeric: ipToNumber(row.ip),
+          }));
+          setRowData(indexedData);
+          setReportInfo({
+            type: `IP Search: ${ip}`,
+            timestamp:
+              dateRange?.from && dateRange?.to
+                ? `${dateRange.from} to ${dateRange.to}`
+                : "",
+          });
+          // Update URL params including date range
+          const params = new URLSearchParams();
+          params.set("ip", ip);
+          if (dateRange?.from && dateRange?.to) {
+            params.set("from", dateRange.from);
+            params.set("to", dateRange.to);
+          }
+          if (geoSetting) params.set("geo", geoSetting);
+          if (initialGroupCols.length > 0) {
+            params.set("group", initialGroupCols.join(","));
+          }
+          router.replace(pathname + "?" + params.toString(), { scroll: false });
+          setLoading(false);
+        })
+        .catch((error) => {
+          console.error("Error loading IP search:", error);
+          setLoading(false);
+        });
+      return;
+    }
+    if (reportId) {
+      setLoading(true);
+      fetch(`/api/reports/download?id=${reportId}`)
+        .then((result) => result.json())
+        .then((data) => {
+          const indexedData = (data || []).map((row: any, idx: number) => ({
+            ...row,
+            originalIndex: idx,
+            ipNumeric: ipToNumber(row.ip),
+          }));
+          setRowData(indexedData);
+          setReportInfo({
+            type: type || "Unknown Report",
+            timestamp: initialTimestamp || "",
+          });
+          setLoading(false);
+        })
+        .catch((error) => {
+          console.error("Error loading report:", error);
+          setLoading(false);
+        });
+    }
+  }, [
+    ip,
+    reportId,
+    type,
+    initialTimestamp,
+    dateRange,
+    initialGroupCols,
+    pathname,
+    router,
+    geoSetting,
+  ]);
+
+  // Set document title when reportInfo changes
+  useEffect(() => {
+    if (reportInfo) {
+      document.title = `${reportInfo.type} ${reportInfo.timestamp} - Shadowserver Report`;
+    }
+  }, [reportInfo]);
+
+  // Pre-populate dnsResolutions from localStorage on rowData change
+  useEffect(() => {
+    if (rowData && rowData.length > 0) {
+      const newDnsResolutions: DnsResolutions = {};
+      rowData.forEach((row) => {
+        const rowKey = getRowKey(row);
+        const cacheKey = `dnsCache:${row.hostname}`;
+        const cached = localStorage.getItem(cacheKey);
+        if (cached) {
+          try {
+            const parsed = JSON.parse(cached);
+            if (
+              parsed.timestamp &&
+              Date.now() - parsed.timestamp < DNS_CACHE_TTL
+            ) {
+              newDnsResolutions[rowKey] = {
+                status: parsed.status,
+                resolvedIp: parsed.resolvedIp,
+              };
+            }
+          } catch {}
+        }
+      });
+      if (Object.keys(newDnsResolutions).length > 0) {
+        setDnsResolutions((prev) => ({ ...prev, ...newDnsResolutions }));
+      }
+    }
+  }, [rowData, getRowKey, DNS_CACHE_TTL]);
+
+  // On data load, fetch ASN names using cache
+  useEffect(() => {
+    if (rowData.length === 0) return;
+
+    const uniqueAsns = Array.from(
+      new Set(rowData.map((row) => String(row.asn)).filter(Boolean))
+    );
+
+    const newNamesFromCache: { [key: string]: string } = {};
+    const asnsToFetchFromApi: string[] = [];
+
+    for (const asn of uniqueAsns) {
+      if (asnNames[asn] !== undefined) {
+        continue;
+      }
+      const cachedName = localStorage.getItem(`asnName:${asn}`);
+      if (cachedName !== null) {
+        newNamesFromCache[asn] = cachedName;
+      } else {
+        asnsToFetchFromApi.push(asn);
+      }
+    }
+
+    if (Object.keys(newNamesFromCache).length > 0) {
+      setAsnNames((prev) => ({ ...prev, ...newNamesFromCache }));
+    }
+
+    if (asnsToFetchFromApi.length > 0) {
+      Promise.all(
+        asnsToFetchFromApi.map((asn) =>
+          fetch(`/api/asn-info?asn=${asn}`)
+            .then((res) => res.json())
+            .then((data) => {
+              const name = data?.name || "";
+              localStorage.setItem(`asnName:${asn}`, name);
+              return [asn, name] as [string, string];
+            })
+            .catch(() => [asn, ""] as [string, string])
+        )
+      ).then((results) => {
+        setAsnNames((prev) => ({
+          ...prev,
+          ...Object.fromEntries(results),
+        }));
+      });
+    }
+  }, [rowData, asnNames]);
 
   return (
     <div className="flex flex-col gap-4">
-      {reportId && reportInfo && (
-        <div className="flex justify-between items-center">
-          <Breadcrumb
-            items={[
-              { label: "Reports", href: "/" },
-              { label: reportInfo.type, href: `/?report=${reportInfo.type}` },
-              {
-                label: `${reportInfo.timestamp}`,
-              },
-            ]}
-          />
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleClose}
-            className="gap-2"
-          >
-            <Cross1Icon className="h-4 w-4" />
-            Close
-          </Button>
-        </div>
-      )}
+      <div className="flex justify-between items-center">
+        <Breadcrumb
+          items={[
+            { label: "Reports", href: "/" },
+            {
+              label: ip ? ip : reportInfo?.type || "",
+              href: ip ? `/query?ip=${ip}` : `/?report=${reportInfo?.type}`,
+            },
+            {
+              label: reportInfo?.timestamp
+                ? `${reportInfo?.timestamp}`
+                : `${dateRange?.from} to ${dateRange?.to}`,
+            },
+          ]}
+        />
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={handleClose}
+          className="gap-2"
+        >
+          <Cross1Icon className="h-4 w-4" />
+          Close
+        </Button>
+      </div>
       <div style={{ width: "100%", height: "calc(100vh - 200px)" }}>
-        {isLoading ? (
-          <div className="flex justify-center items-center h-full">
-            <Spinner />
-          </div>
-        ) : (
-          <AgGridReact
-            rowData={rowData}
-            columnDefs={columnDefs}
-            suppressMaintainUnsortedOrder={false}
-            autoSizeStrategy={{
-              type: "fitCellContents",
-            }}
-            rowGroupPanelShow="always"
-            sideBar={false}
-            groupDisplayType="groupRows"
-            suppressAggFuncInHeader={true}
-            animateRows={true}
-            rowSelection={rowSelection}
-            statusBar={statusBar}
-            onGridReady={(params) => {
-              setGridApi(params.api);
-            }}
-            onColumnRowGroupChanged={(params) => {
-              const groupCols = params.api
-                .getRowGroupColumns()
-                .map((col: any) => col.getColId());
-              updateGroupingsInUrl(groupCols);
-            }}
-            getContextMenuItems={getContextMenuItems}
-            getRowId={(params) => params.data.originalIndex?.toString()}
-          />
-        )}
+        <AgGridReact
+          rowData={rowData}
+          columnDefs={columnDefs}
+          suppressMaintainUnsortedOrder={false}
+          autoSizeStrategy={{
+            type: "fitCellContents",
+          }}
+          rowGroupPanelShow="always"
+          sideBar={false}
+          groupDisplayType="groupRows"
+          suppressAggFuncInHeader={true}
+          animateRows={true}
+          rowSelection={rowSelection}
+          statusBar={statusBar}
+          loading={loading}
+          loadingOverlayComponent={LoadingOverlay}
+          loadingOverlayComponentParams={{
+            loadingMessage: "Loading data...",
+          }}
+          noRowsOverlayComponent={NoRowsOverlay}
+          noRowsOverlayComponentParams={{
+            noRowsMessage: "No data found",
+          }}
+          onGridReady={(params) => {
+            setGridApi(params.api);
+
+            // For IP queries, always set the timestamp filter
+            if (ip) {
+              // Short delay to ensure grid is ready
+              setTimeout(() => {
+                if (initialDateRange?.from && initialDateRange?.to) {
+                  initialFilterSet.current = true;
+                  params.api.setFilterModel({
+                    timestamp: {
+                      type: "inRange",
+                      dateFrom: initialDateRange.from,
+                      dateTo: initialDateRange.to,
+                    },
+                  });
+                }
+              }, 0);
+            }
+
+            // Apply initial grouping if specified
+            if (initialGroupCols.length > 0) {
+              try {
+                const validColumns = initialGroupCols.filter((colId) =>
+                  columnDefs.some((colDef) => colDef.field === colId)
+                );
+                params.api.setRowGroupColumns(validColumns);
+              } catch (error) {
+                console.error("Error applying groupings:", error);
+              }
+            }
+          }}
+          onColumnRowGroupChanged={(params) => {
+            const groupCols = params.api
+              .getRowGroupColumns()
+              .map((col: any) => col.getColId());
+            updateGroupingsInUrl(groupCols);
+          }}
+          getContextMenuItems={getContextMenuItems}
+          getRowId={(params) => params.data.originalIndex?.toString()}
+          onFilterChanged={handleDateFilterChange}
+        />
       </div>
     </div>
   );

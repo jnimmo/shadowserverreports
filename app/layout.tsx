@@ -22,7 +22,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <div className="container mx-auto py-10">
+        <div className="container-2 mx-auto py-10">
           <Card>
             <CardHeader>
               <CardTitle>Shadowserver Report Viewer</CardTitle>

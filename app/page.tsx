@@ -9,13 +9,20 @@ import { Filters } from "@/components/Filters";
 
 export default function ShadowserverReports() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [filters, setFilters] = useState<FilterSettings>({
-    dateRange: {
-      from: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000)
-        .toISOString()
-        .replace("Z", ""),
-      to: new Date().toISOString().replace("Z", ""),
-    },
+  const [filters, setFilters] = useState<FilterSettings>(() => {
+    const defaultGeo =
+      typeof window !== "undefined"
+        ? localStorage.getItem("default-geo") || "NZ"
+        : "NZ";
+    return {
+      dateRange: {
+        from: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000)
+          .toISOString()
+          .split("T")[0],
+        to: new Date().toISOString().split("T")[0],
+      },
+      geo: defaultGeo,
+    };
   });
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -24,13 +31,17 @@ export default function ShadowserverReports() {
       setIsAuthenticated(!!key);
       setIsLoading(false);
     });
-    setFilters({
-      dateRange: {
-        from: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000)
-          .toISOString()
-          .replace("Z", ""),
-        to: new Date().toISOString().replace("Z", ""),
-      },
+    // On mount, if geo is not set, set it to defaultGeo
+    setFilters((prev) => {
+      if (prev.geo) return prev;
+      const defaultGeo =
+        typeof window !== "undefined"
+          ? localStorage.getItem("default-geo") || "NZ"
+          : "NZ";
+      return {
+        ...prev,
+        geo: defaultGeo,
+      };
     });
   }, []);
 
