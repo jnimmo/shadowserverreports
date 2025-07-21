@@ -67,10 +67,9 @@ export default function ShadowserverReports() {
             />
           </div>
         </div>
-        {isAuthenticated && !isLoading ? (
-          <ReportList filters={filters} />
-        ) : (
-          <p>To get started, specify the API key in Settings</p>
+        {isAuthenticated && <ReportList filters={filters} />}
+        {!isAuthenticated && !isLoading && (
+          <p>Please specify an API key in Settings to get started.</p>
         )}
         {errorMessage && (
           <p className="text-red-500 text-sm mt-4">{errorMessage}</p>

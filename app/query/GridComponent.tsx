@@ -344,6 +344,7 @@ const GridComponent = () => {
         sortable: true,
         filter: true,
         enableRowGroup: true,
+        hide: field === "ipNumeric" || field === "originalIndex",
       };
 
       if (
@@ -812,16 +813,20 @@ const GridComponent = () => {
       <div className="flex justify-between items-center">
         <Breadcrumb
           items={[
-            { label: "Reports", href: "/" },
+            { label: ip ? "Query" : "Reports", href: "/" },
             {
               label: ip ? ip : reportInfo?.type || "",
               href: ip ? `/query?ip=${ip}` : `/?report=${reportInfo?.type}`,
             },
-            {
-              label: reportInfo?.timestamp
-                ? `${reportInfo?.timestamp}`
-                : `${dateRange?.from} to ${dateRange?.to}`,
-            },
+            ...(reportInfo?.timestamp || (dateRange?.from && dateRange?.to)
+              ? [
+                  {
+                    label:
+                      reportInfo?.timestamp ||
+                      `${dateRange?.from} to ${dateRange?.to}`,
+                  },
+                ]
+              : []),
           ]}
         />
         <Button

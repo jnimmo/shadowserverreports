@@ -26,9 +26,11 @@ export function SettingsModal() {
   });
 
   const handleSave = async () => {
-    await setApiConfig(apiKey, apiSecret);
-    setApiKeyState("");
-    setApiSecretState("");
+    if (apiKey && apiSecret) {
+      await setApiConfig(apiKey, apiSecret);
+      setApiKeyState("");
+      setApiSecretState("");
+    }
     if (typeof window !== "undefined") {
       localStorage.setItem("default-geo", defaultGeo || "NZ");
     }

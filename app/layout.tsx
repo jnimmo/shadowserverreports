@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/card";
 
 export const metadata: Metadata = {
-  title: "Shadowserver Report Viewer",
+  title: "Report Viewer for Shadowserver",
   description:
     "An unofficial web client to query and display reports from Shadowserver",
 };
@@ -25,7 +25,7 @@ export default function RootLayout({
         <div className="container-2 mx-auto py-10">
           <Card>
             <CardHeader>
-              <CardTitle>Shadowserver Report Viewer</CardTitle>
+              <CardTitle>Report Viewer for Shadowserver</CardTitle>
               <CardDescription>
                 Unofficial web client to query and display reports from the
                 Shadowserver API. See{" "}

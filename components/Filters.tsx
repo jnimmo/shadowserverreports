@@ -55,8 +55,12 @@ export function Filters({
     return params.toString();
   };
 
-  // Local state for immediate UI updates
-  const [localFilters, setLocalFilters] = useState(filters);
+  // Local state for immediate UI updates with default values
+  const [localFilters, setLocalFilters] = useState({
+    ...filters,
+    reportType: filters.reportType || "all",
+    severity: filters.severity || "any",
+  });
   const [ipSearch, setIpSearch] = useState("");
   const ipInputRef = useRef<HTMLInputElement>(null);
 
@@ -123,7 +127,7 @@ export function Filters({
     <div className="flex flex-wrap gap-4 w-full">
       {/* Main filters */}
       <Select
-        value={localFilters.reportType}
+        value={localFilters.reportType || "all"}
         required={false}
         onValueChange={(value) => {
           handleFilterChange({ reportType: value });
@@ -140,7 +144,7 @@ export function Filters({
         setFilters={handleFilterChange}
       />
       <Select
-        value={localFilters.severity}
+        value={localFilters.severity || "any"}
         required={false}
         onValueChange={(value) => {
           handleFilterChange({ severity: value });
