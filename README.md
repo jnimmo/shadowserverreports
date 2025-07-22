@@ -28,6 +28,8 @@ API keys are securely stored in browser cookies using iron-session.
 
 ### Development
 
+This is a proof of concept, expect significant refactoring :)
+
 First, run the development server:
 
 ```bash
