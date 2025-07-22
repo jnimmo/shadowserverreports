@@ -1,18 +1,25 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
-# Shadowserver Reports
+# Shadowserver Report Viewer
 
 ## Introduction
 
-This project provides Shadowserver API subscribers with a web interface to list and download available reports.
+This project provides Shadowserver API subscribers with a web interface to list, view and download available reports. It's designed to make it easy for analysts to get started with Shadowserver reporting.
 
-API keys are securely stored in browser cookies and used by the server to proxy requests to the Shadowserver API.
+### Security
+While this is designed to be a client side web application, it utilises Next.js API routes to proxy requests to the Shadowserver API.
+API keys are securely stored in browser cookies using iron-session.
+
 
 ### Features
 
 - Filter by report type and date range
 - List reports
 - Download CSV reports
+- View reports in the powerful Ag-grid component
+- ASN name lookups using Cloudflare Radar API
+- On-demand validation of DNS hostnames using Cloudflare 1.1.1.1 DoH resolver
+- Analyst workstation features such as 'Lookup IP in Shodan'
 
 ### Configuration
 
