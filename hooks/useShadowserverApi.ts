@@ -7,6 +7,7 @@ import { Fetcher, SWRConfiguration } from "swr";
 
 const swrConfig: SWRConfiguration = {
   //revalidateIfStale: false,
+  refreshInterval: 3600, // 1 hour
   revalidateOnFocus: false,
   revalidateOnReconnect: false,
   onErrorRetry: (error, key, config, revalidate, { retryCount }) => {
