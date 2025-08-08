@@ -13,6 +13,7 @@ import type {
   ValueGetterParams,
   MenuItemDef,
   DefaultMenuItem,
+  ISetFilterParams,
 } from "ag-grid-community";
 import { AllEnterpriseModule, ModuleRegistry } from "ag-grid-enterprise";
 import "ag-grid-enterprise";
@@ -351,7 +352,17 @@ const GridComponent = () => {
         ["port", "src_port", "dst_port", "naics"].includes(field.toLowerCase())
       ) {
         colDef.type = "numericColumn";
-        colDef.filter = "agNumberColumnFilter";
+        colDef.filter = "agMultiColumnFilter";
+        colDef.filterParams = {
+          filters: [
+            {
+              filter: "agNumberColumnFilter",
+            },
+            {
+              filter: "agSetColumnFilter",
+            },
+          ],
+        };
         colDef.comparator = (valueA: any, valueB: any) => {
           const numA = Number(valueA) || 0;
           const numB = Number(valueB) || 0;
@@ -396,6 +407,25 @@ const GridComponent = () => {
         };
       } else if (field.toLowerCase() === "hostname") {
         colDef.cellRenderer = hostnameCellRenderer;
+        colDef.filter = "agMultiColumnFilter";
+        colDef.filterParams = {
+          filters: [
+            {
+              filter: "agTextColumnFilter",
+            },
+            {
+              filter: "agSetColumnFilter",
+              filterParams: {
+                treeList: true,
+                treeListPathGetter: (hostname: string) => {
+                  // Check if the hostname looks like an IP address (starts with numbers and dots)
+                  const isIpLike = /(?:\d{1,3}[-\.]){3}/.test(hostname);
+                  return [isIpLike ? "PTR Records" : "Domain names", hostname];
+                },
+              } as ISetFilterParams<any, string>,
+            },
+          ],
+        };
       } else if (field.toLowerCase() === "asn") {
         colDef.valueFormatter = (params: ValueFormatterParams) => {
           const asn = params.value;
