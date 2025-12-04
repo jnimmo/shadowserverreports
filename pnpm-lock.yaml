@@ -89,7 +89,7 @@ importers:
         specifier: ^15.0.12
         version: 15.0.12
       next:
-        specifier: '>=15.3.6'
+        specifier: ^16.0.7
         version: 16.0.7(react-dom@19.2.1(react@19.2.1))(react@19.2.1)
       next-themes:
         specifier: ^0.4.6
