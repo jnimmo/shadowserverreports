@@ -38,6 +38,14 @@ export function ReportList({ filters }: { filters: FilterSettings }) {
 
   const getSortLabel = (col: SortBy) => (sortBy === col ? " (sorted)" : "");
 
+  const formatReportLabel = (report: Report) => {
+    const baseLabel = report.description ?? report.type;
+    if (!report.report?.endsWith("-tld")) return baseLabel;
+
+    const tldCode = report.report.replace(/-tld$/, "").split("-").pop();
+    return tldCode ? `${baseLabel} (.${tldCode})` : baseLabel;
+  };
+
   const getSortOrder = (a: Report, b: Report) => {
     if (sortBy === "date") {
       const dateDiff = b.timestamp.localeCompare(a.timestamp);
@@ -142,10 +150,10 @@ export function ReportList({ filters }: { filters: FilterSettings }) {
                         target="_blank"
                         rel="noopener noreferrer"
                       >
-                        {report.description}
+                        {formatReportLabel(report)}
                       </a>
                     ) : (
-                      report.type
+                      formatReportLabel(report)
                     )}
                   </TableCell>
                   <TableCell>

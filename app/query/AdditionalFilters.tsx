@@ -3,6 +3,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useState } from "react";
+import { FilterSettings } from "../actions/filters";
 
 export type AdditionalFilterValues = {
   geo: string | null;
@@ -23,7 +24,7 @@ export function AdditionalFilters({
   const router = useRouter();
   const pathname = usePathname();
   // Local state for immediate UI updates
-  const [localFilters, setLocalFilters] = useState({
+  const [localFilters, setLocalFilters] = useState<FilterSettings>({
     dateRange: { to: "", from: "" },
   });
 
@@ -66,7 +67,9 @@ export function AdditionalFilters({
     <>
       <DatePickerWithRange
         filters={localFilters}
-        setFilters={setLocalFilters}
+        setFilters={(updates) =>
+          setLocalFilters((prev) => ({ ...prev, ...updates }))
+        }
       />
       <div className="grid grid-cols-4 gap-4">
         <div>

@@ -22,20 +22,40 @@ export function DatePickerWithRange({
 }: {
   className?: React.HTMLAttributes<HTMLDivElement>;
   filters: FilterSettings;
-  setFilters: (filters: FilterSettings) => void;
+  setFilters: (filters: Partial<FilterSettings>) => void;
 }) {
-  const [date, setDate] = React.useState<DateRange | undefined>({
-    from: addDays(new Date(), -4),
-    to: new Date(),
-  });
+  const parseDate = (value?: string) => {
+    if (!value) return undefined;
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? undefined : parsed;
+  };
+
+  const [date, setDate] = React.useState<DateRange | undefined>(() => ({
+    from: parseDate(filters.dateRange?.from) ?? addDays(new Date(), -4),
+    to: parseDate(filters.dateRange?.to) ?? new Date(),
+  }));
+
+  React.useEffect(() => {
+    const nextRange: DateRange | undefined =
+      filters.dateRange?.from || filters.dateRange?.to
+        ? {
+            from: parseDate(filters.dateRange?.from),
+            to: parseDate(filters.dateRange?.to),
+          }
+        : undefined;
+    setDate(nextRange);
+  }, [filters.dateRange?.from, filters.dateRange?.to]);
 
   const handleDateRangeChange = (dateRange: DateRange | undefined) => {
     setDate(dateRange);
     setFilters({
-      ...filters,
       dateRange: {
-        from: dateRange?.from?.toISOString() ?? "",
-        to: dateRange?.to?.toISOString() ?? "",
+        from: dateRange?.from ? format(dateRange.from, "yyyy-MM-dd") : "",
+        to: dateRange?.to
+          ? format(dateRange.to, "yyyy-MM-dd")
+          : dateRange?.from
+          ? format(dateRange.from, "yyyy-MM-dd")
+          : "",
       },
     });
   };
@@ -48,7 +68,7 @@ export function DatePickerWithRange({
             id="date"
             variant={"outline"}
             className={cn(
-              "w-full justify-start text-left font-normal",
+              "w-full justify-start text-left font-normal sm:w-[280px]",
               !date && "text-muted-foreground"
             )}
           >

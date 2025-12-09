@@ -95,7 +95,10 @@ export function Filters({
   }, [filters, searchParams, setFilters, debouncedSetFilters]);
 
   // Update local state immediately, debounce global updates
-  const handleFilterChange = (updates: Partial<FilterSettings>) => {
+  const handleFilterChange = (
+    updates: Partial<FilterSettings>,
+    options?: { immediate?: boolean }
+  ) => {
     // Reset severity when report type changes
     const resetSeverity = updates.reportType ? { severity: "any" } : {};
 
@@ -105,7 +108,12 @@ export function Filters({
       ...resetSeverity, // Apply severity reset last to ensure it takes precedence
     };
     setLocalFilters(newFilters);
-    debouncedSetFilters(newFilters);
+    if (options?.immediate) {
+      debouncedSetFilters.cancel();
+      setFilters(newFilters);
+    } else {
+      debouncedSetFilters(newFilters);
+    }
 
     // Update URL with all active filters
     const queryString = updateQueryString(newFilters);
@@ -141,7 +149,9 @@ export function Filters({
 
       <DatePickerWithRange
         filters={localFilters}
-        setFilters={handleFilterChange}
+        setFilters={(updates) =>
+          handleFilterChange(updates, { immediate: true })
+        }
       />
       <Select
         value={localFilters.severity || "any"}
