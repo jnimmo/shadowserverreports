@@ -6,6 +6,8 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 This project provides Shadowserver API subscribers with a web interface to list, view and download available reports. It's designed to make it easy for analysts to get started with Shadowserver reporting.
 
+![Demo Video showing the report viewier](https://media3.giphy.com/media/v1.Y2lkPTc5MGI3NjExcTk5OGQ2bjRqZGozN2hmYTg5M2x0cm5pbmkxMmJwNnhieDd1cDEybyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/yvW2L1PcIMVbfbRnLG/giphy.gif)
+
 ### Security
 While this is designed to be a client side web application, it utilises Next.js API routes to proxy requests to the Shadowserver API.
 API keys are securely stored in browser cookies using iron-session.
